@@ -7,9 +7,9 @@
 import { getSession, onAuthStateChange, signOut } from '../services/authService.js';
 
 const NAV_LINKS = [
-  { href: '/#how-it-works', label: 'Home' },
-  { href: '/#live-preview', label: 'Live' },
-  { href: '/#use-cases', label: 'Events' },
+  { href: '/', label: 'Home' },
+  { href: '/events.html?filter=live', label: 'Live' },
+  { href: '/events.html', label: 'Events' },
   { href: '/#why', label: 'About' }
 ];
 
