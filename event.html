@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Event — Mayorcity LIVE</title>
+  <meta id="meta-description" name="description" content="View this broadcast on Mayorcity LIVE." />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/src/styles/tokens.css" />
+  <link rel="stylesheet" href="/src/styles/base.css" />
+  <link rel="stylesheet" href="/src/styles/components.css" />
+  <link rel="stylesheet" href="/src/styles/landing.css" />
+  <link rel="stylesheet" href="/src/styles/events.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <div id="navbar-root"></div>
+
+  <main id="main-content">
+    <section class="section">
+      <div class="container event-detail-shell" id="event-detail-shell">
+        <a class="event-detail-back" href="/events.html">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M8.5 3L4 7l4.5 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Back to events
+        </a>
+
+        <div id="event-detail-content"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer-root"></div>
+
+  <script type="module" src="/src/pages/eventDetail.js"></script>
+</body>
+</html>
