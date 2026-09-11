@@ -13,7 +13,10 @@ export default defineConfig({
         signup: resolve(__dirname, 'signup.html'),
         forgotPassword: resolve(__dirname, 'forgot-password.html'),
         resetPassword: resolve(__dirname, 'reset-password.html'),
-        dashboard: resolve(__dirname, 'dashboard.html')
+        dashboard: resolve(__dirname, 'dashboard.html'),
+        events: resolve(__dirname, 'events.html'),
+        event: resolve(__dirname, 'event.html'),
+        broadcast: resolve(__dirname, 'broadcast.html')
       }
     }
   }
