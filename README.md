@@ -71,16 +71,22 @@ variables** (do not commit them).
 ```
 mayorcity-live/
 ├── index.html                  Landing page
+├── events.html                 Public events listing (live + upcoming)
+├── event.html                  Public event detail page
 ├── signin.html                 Sign-in page
 ├── signup.html                 Create-account page
 ├── forgot-password.html        Password reset request page
 ├── reset-password.html         Password reset confirmation (from emailed link)
-├── dashboard.html              Protected placeholder — proves auth end-to-end
+├── dashboard.html              Signed-in: create/manage your events
+├── broadcast.html              Host-only: camera preview + go-live controls
 ├── netlify.toml                Netlify build config
 ├── vite.config.js              Multi-page build entries
-├── .env.example                Template for local Supabase env vars
+├── .env.example                Template for local Supabase/LiveKit env vars
+├── netlify/
+│   └── functions/
+│       └── create-livekit-token.mts   Mints LiveKit tokens server-side (secrets live here only)
 ├── supabase/
-│   └── schema.sql              Run once in the Supabase SQL editor (profiles table + RLS)
+│   └── schema.sql              Run in the Supabase SQL editor (profiles + events tables, RLS)
 ├── public/
 │   └── favicon.svg
 └── src/
@@ -90,7 +96,10 @@ mayorcity-live/
     │   ├── signup.js
     │   ├── forgotPassword.js
     │   ├── resetPassword.js
-    │   └── dashboard.js
+    │   ├── dashboard.js
+    │   ├── events.js
+    │   ├── eventDetail.js
+    │   └── broadcastPage.js
     ├── components/              Reusable UI, shared across every page
     │   ├── navbar.js            Auth-aware: swaps sign-in/sign-out based on session
     │   ├── footer.js
@@ -98,7 +107,9 @@ mayorcity-live/
     │   ├── modal.js
     │   └── uiKit.js             LiveBadge, EventCard, Loading/Empty/Error states
     ├── services/
-    │   └── authService.js      All Supabase Auth calls go through here
+    │   ├── authService.js      All Supabase Auth calls go through here
+    │   ├── eventsService.js    All `events` table reads/writes go through here
+    │   └── broadcastService.js LiveKit connection foundation (not wired into UI yet)
     ├── lib/
     │   └── supabaseClient.js    Single shared Supabase client
     ├── styles/
@@ -106,13 +117,16 @@ mayorcity-live/
     │   ├── base.css             Reset + global element styles + accessibility defaults
     │   ├── components.css       Buttons, inputs, cards, badges, nav, modal, toast, states
     │   ├── landing.css          Landing-page-specific layout
-    │   └── auth.css             Auth-page-specific layout
+    │   ├── auth.css             Auth-page-specific layout
+    │   ├── dashboard.css        Dashboard shell + events management layout
+    │   ├── events.css           Public events listing + detail layout
+    │   └── broadcast.css        Host camera preview + controls layout
     └── utils/
         ├── dom.js               Small DOM + validation + button-loading helpers
         └── authGuard.js         requireAuth() — protects pages that need a session
 ```
 
-Adding a new page (Batch 3+) means adding one `.html` file at the root, one
+Adding a new page (Batch 5+) means adding one `.html` file at the root, one
 entry in `vite.config.js`, and a matching file in `src/pages/` — nothing in
 the existing structure needs to change.
 
@@ -153,20 +167,72 @@ there first, then use it everywhere else via `var(--token-name)`.
 football scoreboard, broadcaster controls, analytics, admin dashboard,
 event/broadcast management, and social sign-in (Google/Apple etc.).
 
+## What's in Batch 3
+
+- `supabase/schema.sql` extended with an `events` table (RLS: hosts manage
+  their own events, anyone can view scheduled/live ones)
+- `eventsService.js` — create/read/update/delete events, all Supabase calls
+  in one place
+- Dashboard now has a real "Create an event" form and a "Your events" list
+  (cancel/delete wired up)
+- `events.html` — public listing of live/upcoming events with filter tabs
+- `event.html` — public detail page for a single event (`?id=`), with a
+  placeholder video panel (real video is Batch 4/5)
+- Navbar's Live/Events links now point at these real pages instead of
+  landing-page anchors
+
+**Not included yet, by design:** LiveKit / live video, real-time chat,
+football scoreboard, broadcaster controls, analytics, admin dashboard, and
+social sign-in (Google/Apple etc.).
+
 ### Known gap to fill before launch
 
 `index.html` references `/og-image.png` for social-share previews. That
 image file isn't included in this batch — add a 1200×630 PNG at
 `public/og-image.png` before going live.
 
+## What's in Batch 4
+
+- LiveKit client (`livekit-client`) and server SDK (`livekit-server-sdk`)
+- `netlify/functions/create-livekit-token.mts` — the only place
+  `LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET` are ever read, from Netlify's
+  server-side environment variables, never shipped to the browser
+- `broadcastService.js` — `connectAsHost()` / `connectAsViewer()`
+- `broadcast.html` — the host's camera preview and controls: start camera,
+  mute mic, go live, end broadcast, copy the viewer link. Only the event's
+  own host can open it
+- `event.html` now plays real video once an event is live, and switches
+  from the placeholder monitor to the live stream automatically (via a
+  Supabase Realtime subscription) — no page refresh needed
+- **Viewers do not need an account.** Watching is anonymous; only creating
+  and hosting an event requires signing in
+- `supabase/schema.sql` now enables Realtime on the `events` table
+
+**Not included yet, by design:** recording/playback of past broadcasts,
+picture-in-quality controls, multi-camera/co-host support, real-time chat,
+football scoreboard overlays, and the dedicated broadcaster control centre
+(this batch's `broadcast.html` is intentionally minimal — Batch 7 replaces
+it with the full control centre).
+
+### To actually use LiveKit
+
+1. Create a project at [livekit.io](https://livekit.io) (or self-host) to get
+   a project URL, API key, and API secret.
+2. In Netlify: **Site settings → Environment variables**, add
+   `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET` (server-side only — do not
+   prefix with `VITE_`).
+3. In your local `.env` **and** in Netlify's environment variables, set
+   `VITE_LIVEKIT_URL` to your LiveKit project's `wss://` URL (this one is
+   fine to expose — it's not a secret).
+
 ## Roadmap
 
 | Batch | Scope |
 |---|---|
 | 1 | Foundation, design system, public UI ✅ |
-| 2 | Authentication and user system ✅ *(this repo)* |
-| 3 | Events and broadcast management |
-| 4 | LiveKit live video/audio broadcasting |
+| 2 | Authentication and user system ✅ |
+| 3 | Events and broadcast management ✅ *(this repo)* |
+| 4 | LiveKit live video/audio broadcasting ✅ *(this repo)* |
 | 5 | Premium viewer experience |
 | 6 | Broadcast overlays, programme graphics, football scoreboard |
 | 7 | Broadcaster control centre |
