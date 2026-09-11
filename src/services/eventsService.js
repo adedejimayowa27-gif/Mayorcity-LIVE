@@ -84,6 +84,26 @@ export async function deleteEvent(id) {
   return {};
 }
 
+/**
+ * Subscribes to changes on a single event row (used by the viewer page so
+ * it can switch to live video the moment a host goes live, with no
+ * manual refresh). Returns an unsubscribe function.
+ * @param {string} id
+ * @param {(event: object) => void} onChange
+ */
+export function subscribeToEvent(id, onChange) {
+  const channel = supabase
+    .channel(`event-${id}`)
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'events', filter: `id=eq.${id}` },
+      (payload) => onChange(payload.new)
+    )
+    .subscribe();
+
+  return () => supabase.removeChannel(channel);
+}
+
 function mapEventsError(error) {
   const message = error?.message ?? '';
   if (message.includes('row-level security')) {
