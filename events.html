@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Live &amp; upcoming events — Mayorcity LIVE</title>
+  <meta name="description" content="Browse live and upcoming broadcasts on Mayorcity LIVE — classes, football matches, church services, school events and conferences." />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/src/styles/tokens.css" />
+  <link rel="stylesheet" href="/src/styles/base.css" />
+  <link rel="stylesheet" href="/src/styles/components.css" />
+  <link rel="stylesheet" href="/src/styles/landing.css" />
+  <link rel="stylesheet" href="/src/styles/events.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <div id="navbar-root"></div>
+
+  <main id="main-content">
+    <section class="section">
+      <div class="container">
+        <div class="events-page-header">
+          <h1 style="font-size: var(--text-2xl);">Live &amp; upcoming events</h1>
+          <p style="font-size: var(--text-md); color: var(--color-text-muted); max-width: 56ch;">
+            Everything currently broadcasting or scheduled on Mayorcity LIVE.
+          </p>
+
+          <div class="events-filters" role="group" aria-label="Filter events">
+            <button class="events-filter-btn" type="button" data-filter="all" aria-pressed="true">All</button>
+            <button class="events-filter-btn" type="button" data-filter="live" aria-pressed="false">Live now</button>
+            <button class="events-filter-btn" type="button" data-filter="scheduled" aria-pressed="false">Upcoming</button>
+          </div>
+        </div>
+
+        <div id="events-container"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="footer-root"></div>
+
+  <script type="module" src="/src/pages/events.js"></script>
+</body>
+</html>
