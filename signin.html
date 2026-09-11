@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign in — Mayorcity LIVE</title>
+  <meta name="description" content="Sign in to your Mayorcity LIVE account to manage and start your broadcasts." />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/src/styles/tokens.css" />
+  <link rel="stylesheet" href="/src/styles/base.css" />
+  <link rel="stylesheet" href="/src/styles/components.css" />
+  <link rel="stylesheet" href="/src/styles/auth.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <div class="auth-shell">
+    <main class="auth-main" id="main-content">
+      <div class="auth-card">
+        <a class="auth-logo" href="/" aria-label="Mayorcity LIVE home">
+          <span class="dot" aria-hidden="true"></span>
+          Mayorcity LIVE
+        </a>
+
+        <h1>Sign in</h1>
+        <p>Welcome back. Sign in to manage your broadcasts.</p>
+
+        <form class="auth-form" id="signin-form" novalidate>
+          <div class="field" id="email-field">
+            <label class="field-label" for="email">Email</label>
+            <input class="input" type="email" id="email" name="email" autocomplete="email" required />
+            <span class="field-error-text" id="email-error" hidden>Enter a valid email address.</span>
+          </div>
+
+          <div class="auth-row-between">
+            <label class="field-label" for="password">Password</label>
+            <a class="auth-link-inline" href="/forgot-password.html">Forgot password?</a>
+          </div>
+          <div class="field" id="password-field" style="margin-top: calc(var(--space-2) * -1)">
+            <input class="input" type="password" id="password" name="password" autocomplete="current-password" required />
+            <span class="field-error-text" id="password-error" hidden>Enter your password.</span>
+          </div>
+
+          <button class="btn btn-primary btn-block" type="submit">Sign in</button>
+        </form>
+
+        <p class="auth-footer-link">
+          Don't have an account? <a href="/signup.html">Create one</a>
+        </p>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="/src/pages/signin.js"></script>
+</body>
+</html>
