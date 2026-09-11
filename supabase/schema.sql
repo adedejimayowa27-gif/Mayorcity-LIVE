@@ -142,3 +142,16 @@ create trigger on_event_updated
 
 create index if not exists events_host_id_idx on public.events (host_id);
 create index if not exists events_status_scheduled_for_idx on public.events (status, scheduled_for);
+
+-- Lets the frontend subscribe to status changes (e.g. 'scheduled' -> 'live')
+-- on a single event row in real time, so a viewer's page updates itself
+-- the moment a host goes live, with no manual refresh or polling.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'events'
+  ) then
+    alter publication supabase_realtime add table public.events;
+  end if;
+end $$;
