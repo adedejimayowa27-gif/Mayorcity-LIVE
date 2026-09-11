@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Broadcast — Mayorcity LIVE</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/src/styles/tokens.css" />
+  <link rel="stylesheet" href="/src/styles/base.css" />
+  <link rel="stylesheet" href="/src/styles/components.css" />
+  <link rel="stylesheet" href="/src/styles/dashboard.css" />
+  <link rel="stylesheet" href="/src/styles/broadcast.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <header class="dash-topbar">
+    <div class="container dash-topbar-inner">
+      <a class="navbar-logo" href="/dashboard.html" aria-label="Back to dashboard">
+        <span class="dot" aria-hidden="true"></span>
+        Mayorcity LIVE
+      </a>
+      <a class="btn btn-secondary" href="/dashboard.html">Back to dashboard</a>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <div class="broadcast-shell" id="broadcast-shell">
+      <!-- Populated by broadcastPage.js once the event and camera are ready -->
+    </div>
+  </main>
+
+  <script type="module" src="/src/pages/broadcastPage.js"></script>
+</body>
+</html>
