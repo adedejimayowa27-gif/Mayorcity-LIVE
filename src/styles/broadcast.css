@@ -1,0 +1,79 @@
+/* Broadcaster page: local camera preview + go-live controls. */
+
+.broadcast-shell {
+  max-width: 640px;
+  margin-inline: auto;
+  padding: var(--space-6) var(--space-5) var(--space-10);
+}
+
+.broadcast-header {
+  margin-bottom: var(--space-6);
+}
+
+.broadcast-header h1 {
+  font-size: var(--text-xl);
+  margin-bottom: var(--space-2);
+}
+
+.broadcast-header p {
+  font-size: var(--text-sm);
+}
+
+.broadcast-monitor {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  border-radius: var(--radius-lg);
+  border: var(--border-width) solid var(--color-border);
+  background: #0a0b0e;
+  overflow: hidden;
+  margin-bottom: var(--space-5);
+}
+
+.broadcast-monitor video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* Mirror the host's own camera preview, like any camera app */
+}
+
+.broadcast-monitor-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-faint);
+  font-size: var(--text-sm);
+  text-align: center;
+  padding: var(--space-5);
+}
+
+.broadcast-monitor-badge {
+  position: absolute;
+  top: var(--space-4);
+  left: var(--space-4);
+}
+
+.broadcast-controls {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-6);
+}
+
+.broadcast-share {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.broadcast-share .input {
+  font-size: var(--text-xs);
+}
+
+@media (max-width: 480px) {
+  .broadcast-share {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
