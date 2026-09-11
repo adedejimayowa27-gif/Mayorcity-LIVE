@@ -1,0 +1,116 @@
+/*
+  Design tokens — the single source of truth for color, type, spacing,
+  radius and shadow across the whole platform (public site + future
+  dashboard). Nothing outside this file should hardcode a hex value,
+  a px spacing figure, or a font stack. Add new tokens here first.
+
+  Concept: a broadcast control room. Near-black background like a
+  monitor wall, a warm off-white for text (not clinical pure white),
+  and a single tally-light red reserved for "live" and primary
+  actions — so red always means "this is live or this is the one
+  thing to do," never decoration.
+*/
+
+:root {
+  /* ---- Color: surfaces ---- */
+  --color-bg: #0c0d10;
+  --color-bg-elevated: #121319;
+  --color-surface: #17181f;
+  --color-surface-hover: #1d1f27;
+  --color-surface-sunken: #0a0b0d;
+
+  /* ---- Color: borders ---- */
+  --color-border: #292b33;
+  --color-border-strong: #3a3d47;
+
+  /* ---- Color: text ---- */
+  --color-text: #f3f2ee;
+  --color-text-muted: #9a9da8;
+  --color-text-faint: #6b6e78;
+  --color-text-on-signal: #14090a;
+
+  /* ---- Color: brand / signal ---- */
+  --color-signal: #ff4433;
+  --color-signal-hover: #ff5b4c;
+  --color-signal-dim: #3a1613;
+  --color-signal-border: #5c2620;
+
+  /* ---- Color: focus / interactive accent (used only for focus rings & links) ---- */
+  --color-focus: #5ac8fa;
+
+  /* ---- Color: semantic ---- */
+  --color-success: #3ecf8e;
+  --color-success-dim: #0f2a20;
+  --color-error: #ff6b5e;
+  --color-error-dim: #331411;
+  --color-warning: #f5b95c;
+
+  /* ---- Typography ---- */
+  --font-display: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+  --font-body: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1rem;
+  --text-md: 1.125rem;
+  --text-lg: 1.375rem;
+  --text-xl: clamp(1.75rem, 1.4rem + 1.4vw, 2.5rem);
+  --text-2xl: clamp(2.25rem, 1.6rem + 2.6vw, 3.5rem);
+  --text-3xl: clamp(2.75rem, 1.8rem + 3.8vw, 4.75rem);
+
+  --leading-tight: 1.1;
+  --leading-snug: 1.35;
+  --leading-normal: 1.6;
+
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+
+  /* ---- Spacing scale (4px base) ---- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 2.5rem;
+  --space-8: 3rem;
+  --space-9: 4rem;
+  --space-10: 5rem;
+  --space-11: 6.5rem;
+  --space-12: 8rem;
+
+  /* ---- Radius scale (mostly restrained; sharp reads more "broadcast console" than "app") ---- */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+  --radius-full: 999px;
+
+  /* ---- Shadow (subtle, low-opacity, large blur — not the generic soft-grey card shadow) ---- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px -8px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 24px 64px -16px rgba(0, 0, 0, 0.6);
+  --shadow-signal-glow: 0 0 0 1px rgba(255, 68, 51, 0.25), 0 8px 24px -8px rgba(255, 68, 51, 0.35);
+
+  /* ---- Layout ---- */
+  --container-max: 1200px;
+  --border-width: 1px;
+
+  /* ---- Motion ---- */
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 400ms;
+
+  /* ---- Z-index scale ---- */
+  --z-nav: 100;
+  --z-modal: 200;
+  --z-toast: 300;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+    --duration-slow: 0ms;
+  }
+}
