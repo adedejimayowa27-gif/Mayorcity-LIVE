@@ -1,21 +1,25 @@
 import { initToastRegion, showToast } from '../components/toast.js';
-import { isValidEmail } from '../utils/dom.js';
-// Prepared for Batch 2: the Supabase client is already wired up and
-// ready to import here once real auth logic is implemented.
-// import { supabase } from '../lib/supabaseClient.js';
+import { isValidEmail, setButtonLoading } from '../utils/dom.js';
+import { signInWithEmail, getSession } from '../services/authService.js';
 
 initToastRegion();
 
 const form = document.getElementById('signin-form');
 const email = document.getElementById('email');
 const password = document.getElementById('password');
+const submitBtn = form.querySelector('button[type="submit"]');
+
+// If already signed in, don't show the sign-in form again.
+getSession().then(({ session }) => {
+  if (session) window.location.href = '/dashboard.html';
+});
 
 function setFieldError(fieldId, errorId, hasError) {
   document.getElementById(fieldId).classList.toggle('field-error', hasError);
   document.getElementById(errorId).hidden = !hasError;
 }
 
-form.addEventListener('submit', (event) => {
+form.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   const emailValid = isValidEmail(email.value);
@@ -26,10 +30,17 @@ form.addEventListener('submit', (event) => {
 
   if (!emailValid || !passwordValid) return;
 
-  // Batch 1 has no live authentication yet — this confirms the form
-  // works end-to-end and hands off to Batch 2 for the real Supabase call.
-  showToast('Sign-in will connect to your account in a future update.', {
-    title: 'Not connected yet',
-    variant: 'default'
-  });
+  setButtonLoading(submitBtn, true, 'Signing in…');
+
+  const { error } = await signInWithEmail({ email: email.value.trim(), password: password.value });
+
+  setButtonLoading(submitBtn, false);
+
+  if (error) {
+    showToast(error, { title: 'Couldn\u2019t sign in', variant: 'error' });
+    return;
+  }
+
+  showToast('Signed in successfully.', { variant: 'success' });
+  window.location.href = '/dashboard.html';
 });
