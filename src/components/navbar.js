@@ -17,9 +17,9 @@ export function initNavbar({ mountId = 'navbar-root' } = {}) {
   mount.innerHTML = `
     <header class="navbar">
       <div class="container navbar-inner">
-        <a class="navbar-logo" href="/" aria-label="Broadcast home">
+        <a class="navbar-logo" href="/" aria-label="Mayorcity LIVE home">
           <span class="dot" aria-hidden="true"></span>
-          Broadcast
+          Mayorcity LIVE
         </a>
 
         <nav class="navbar-links" aria-label="Primary">
@@ -48,9 +48,9 @@ export function initNavbar({ mountId = 'navbar-root' } = {}) {
 
     <div class="mobile-menu" id="mobile-menu" data-open="false" role="dialog" aria-modal="true" aria-label="Menu">
       <div class="mobile-menu-header">
-        <a class="navbar-logo" href="/" aria-label="Broadcast home">
+        <a class="navbar-logo" href="/" aria-label="Mayorcity LIVE home">
           <span class="dot" aria-hidden="true"></span>
-          Broadcast
+          Mayorcity LIVE
         </a>
         <button class="navbar-menu-btn" id="mobile-menu-close" aria-label="Close menu">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
