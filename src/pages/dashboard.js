@@ -51,6 +51,11 @@ function eventCardHtml(event) {
       </div>
       <div class="dash-event-actions">
         ${
+          event.status === 'scheduled' || event.status === 'live'
+            ? `<a class="btn btn-primary" href="/broadcast.html?id=${event.id}">${event.status === 'live' ? 'Manage broadcast' : 'Go live'}</a>`
+            : ''
+        }
+        ${
           event.status === 'scheduled'
             ? `<button class="btn btn-secondary" type="button" data-action="cancel">Cancel</button>`
             : ''
