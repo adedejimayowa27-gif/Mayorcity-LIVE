@@ -41,6 +41,17 @@ Then run the dev server:
 npm run dev
 ```
 
+### Set up the database
+
+In your Supabase project, open **SQL Editor → New query**, paste the
+contents of `supabase/schema.sql`, and run it. This creates a `profiles`
+table (row-level-security enabled) and a trigger that creates a profile row
+automatically whenever someone signs up.
+
+By default, Supabase requires users to confirm their email before they can
+sign in. You can turn this off for local testing in **Authentication →
+Providers → Email → Confirm email**, but leave it on for production.
+
 Build for production:
 
 ```bash
@@ -62,10 +73,14 @@ mayorcity-live/
 ├── index.html                  Landing page
 ├── signin.html                 Sign-in page
 ├── signup.html                 Create-account page
-├── forgot-password.html        Password reset page
+├── forgot-password.html        Password reset request page
+├── reset-password.html         Password reset confirmation (from emailed link)
+├── dashboard.html              Protected placeholder — proves auth end-to-end
 ├── netlify.toml                Netlify build config
 ├── vite.config.js              Multi-page build entries
 ├── .env.example                Template for local Supabase env vars
+├── supabase/
+│   └── schema.sql              Run once in the Supabase SQL editor (profiles table + RLS)
 ├── public/
 │   └── favicon.svg
 └── src/
@@ -73,13 +88,17 @@ mayorcity-live/
     ├── pages/
     │   ├── signin.js
     │   ├── signup.js
-    │   └── forgotPassword.js
+    │   ├── forgotPassword.js
+    │   ├── resetPassword.js
+    │   └── dashboard.js
     ├── components/              Reusable UI, shared across every page
-    │   ├── navbar.js
+    │   ├── navbar.js            Auth-aware: swaps sign-in/sign-out based on session
     │   ├── footer.js
     │   ├── toast.js
     │   ├── modal.js
     │   └── uiKit.js             LiveBadge, EventCard, Loading/Empty/Error states
+    ├── services/
+    │   └── authService.js      All Supabase Auth calls go through here
     ├── lib/
     │   └── supabaseClient.js    Single shared Supabase client
     ├── styles/
@@ -89,10 +108,11 @@ mayorcity-live/
     │   ├── landing.css          Landing-page-specific layout
     │   └── auth.css             Auth-page-specific layout
     └── utils/
-        └── dom.js               Small DOM + validation helpers
+        ├── dom.js               Small DOM + validation + button-loading helpers
+        └── authGuard.js         requireAuth() — protects pages that need a session
 ```
 
-Adding a new page (Batch 2+) means adding one `.html` file at the root, one
+Adding a new page (Batch 3+) means adding one `.html` file at the root, one
 entry in `vite.config.js`, and a matching file in `src/pages/` — nothing in
 the existing structure needs to change.
 
@@ -109,18 +129,29 @@ there first, then use it everywhere else via `var(--token-name)`.
 - Fully responsive landing page: hero, how it works, use cases, why-us, live
   event preview (static mock), final CTA
 - Responsive navbar with a mobile menu
-- Sign in, create account, and forgot password pages (UI + client-side
-  validation only — no real authentication yet, that's Batch 2)
-- Supabase client foundation, wired to environment variables
+- Sign in, create account, and forgot password pages (UI only in Batch 1)
 - Reusable components: buttons, inputs, cards, badges, toasts, modal,
   loading/empty/error states
 - Accessibility basics: semantic HTML, visible focus states, skip link,
   reduced-motion support
 - SEO foundation: titles, meta descriptions, Open Graph tags, favicon
 
+## What's in Batch 2
+
+- Real Supabase authentication: sign up (with email confirmation), sign in,
+  sign out, forgot password, and password reset via the emailed link
+- `authService.js` — every Supabase Auth call goes through this one module
+- `authGuard.js` — `requireAuth()` protects any page that needs a session
+- Auth-aware navbar: shows Sign in/Start broadcasting when logged out, an
+  account badge + Sign out when logged in
+- `dashboard.html` — a minimal protected placeholder that proves the whole
+  auth flow works end-to-end (real dashboard content is Batch 3+)
+- `supabase/schema.sql` — a `profiles` table with row-level security and a
+  trigger that creates a profile automatically on sign-up
+
 **Not included yet, by design:** LiveKit / live video, real-time chat,
-football scoreboard, broadcaster controls, analytics, admin dashboard, and
-real Supabase authentication logic.
+football scoreboard, broadcaster controls, analytics, admin dashboard,
+event/broadcast management, and social sign-in (Google/Apple etc.).
 
 ### Known gap to fill before launch
 
@@ -132,8 +163,8 @@ image file isn't included in this batch — add a 1200×630 PNG at
 
 | Batch | Scope |
 |---|---|
-| 1 | Foundation, design system, public UI *(this repo)* |
-| 2 | Authentication and user system |
+| 1 | Foundation, design system, public UI ✅ |
+| 2 | Authentication and user system ✅ *(this repo)* |
 | 3 | Events and broadcast management |
 | 4 | LiveKit live video/audio broadcasting |
 | 5 | Premium viewer experience |
