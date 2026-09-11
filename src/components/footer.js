@@ -7,9 +7,9 @@ export function initFooter({ mountId = 'footer-root' } = {}) {
   mount.innerHTML = `
     <footer class="footer">
       <div class="container footer-inner">
-        <a class="navbar-logo" href="/" aria-label="Broadcast home">
+        <a class="navbar-logo" href="/" aria-label="Mayorcity LIVE home">
           <span class="dot" aria-hidden="true"></span>
-          Broadcast
+          Mayorcity LIVE
         </a>
 
         <nav class="footer-links" aria-label="Footer">
@@ -19,7 +19,7 @@ export function initFooter({ mountId = 'footer-root' } = {}) {
           <a href="/signup.html">Start broadcasting</a>
         </nav>
 
-        <p class="footer-meta">&copy; ${year} Broadcast. All rights reserved.</p>
+        <p class="footer-meta">&copy; ${year} Mayorcity LIVE. All rights reserved.</p>
       </div>
     </footer>
   `;
