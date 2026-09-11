@@ -1,7 +1,10 @@
-// Renders the public-site navbar + its mobile menu into #navbar-root.
-// Authenticated dashboard navigation (Batch 2+) replaces this component
-// entirely rather than extending it — public and dashboard are meant to
-// have two different visual personalities (see project brief).
+// Renders the public-site navbar + its mobile menu into #navbar-root, and
+// keeps the sign-in/sign-out actions in sync with the current Supabase
+// session. Authenticated dashboard navigation (Batch 3+) replaces this
+// component entirely rather than extending it — public and dashboard are
+// meant to have two different visual personalities (see project brief).
+
+import { getSession, onAuthStateChange, signOut } from '../services/authService.js';
 
 const NAV_LINKS = [
   { href: '/#how-it-works', label: 'Home' },
@@ -9,6 +12,35 @@ const NAV_LINKS = [
   { href: '/#use-cases', label: 'Events' },
   { href: '/#why', label: 'About' }
 ];
+
+function loggedOutActionsHtml() {
+  return `
+    <a class="btn btn-ghost" href="/signin.html">Sign in</a>
+    <a class="btn btn-primary" href="/signup.html">Start broadcasting</a>
+  `;
+}
+
+function loggedInActionsHtml(session) {
+  const displayName = session.user?.user_metadata?.full_name || session.user?.email || 'Account';
+  return `
+    <span class="badge" style="max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${displayName}</span>
+    <button class="btn btn-secondary" type="button" id="navbar-sign-out">Sign out</button>
+  `;
+}
+
+function loggedOutMobileActionsHtml() {
+  return `
+    <a class="btn btn-secondary btn-block" href="/signin.html">Sign in</a>
+    <a class="btn btn-primary btn-block" href="/signup.html">Start broadcasting</a>
+  `;
+}
+
+function loggedInMobileActionsHtml() {
+  return `
+    <a class="btn btn-secondary btn-block" href="/dashboard.html">Dashboard</a>
+    <button class="btn btn-primary btn-block" type="button" id="mobile-navbar-sign-out">Sign out</button>
+  `;
+}
 
 export function initNavbar({ mountId = 'navbar-root' } = {}) {
   const mount = document.getElementById(mountId);
@@ -26,9 +58,8 @@ export function initNavbar({ mountId = 'navbar-root' } = {}) {
           ${NAV_LINKS.map((link) => `<a href="${link.href}">${link.label}</a>`).join('')}
         </nav>
 
-        <div class="navbar-actions">
-          <a class="btn btn-ghost" href="/signin.html">Sign in</a>
-          <a class="btn btn-primary" href="/signup.html">Start broadcasting</a>
+        <div class="navbar-actions" id="navbar-actions">
+          ${loggedOutActionsHtml()}
         </div>
 
         <button
@@ -63,13 +94,17 @@ export function initNavbar({ mountId = 'navbar-root' } = {}) {
         ${NAV_LINKS.map((link) => `<a href="${link.href}">${link.label}</a>`).join('')}
       </nav>
 
-      <div class="mobile-menu-actions">
-        <a class="btn btn-secondary btn-block" href="/signin.html">Sign in</a>
-        <a class="btn btn-primary btn-block" href="/signup.html">Start broadcasting</a>
+      <div class="mobile-menu-actions" id="mobile-menu-actions">
+        ${loggedOutMobileActionsHtml()}
       </div>
     </div>
   `;
 
+  wireMobileMenu();
+  wireAuthState();
+}
+
+function wireMobileMenu() {
   const menu = document.getElementById('mobile-menu');
   const openBtn = document.getElementById('mobile-menu-open');
   const closeBtn = document.getElementById('mobile-menu-close');
@@ -96,4 +131,29 @@ export function initNavbar({ mountId = 'navbar-root' } = {}) {
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && menu.dataset.open === 'true') closeMenu();
   });
+}
+
+function renderAuthActions(session) {
+  const actions = document.getElementById('navbar-actions');
+  const mobileActions = document.getElementById('mobile-menu-actions');
+  if (!actions || !mobileActions) return;
+
+  actions.innerHTML = session ? loggedInActionsHtml(session) : loggedOutActionsHtml();
+  mobileActions.innerHTML = session ? loggedInMobileActionsHtml() : loggedOutMobileActionsHtml();
+
+  const signOutBtn = document.getElementById('navbar-sign-out');
+  const mobileSignOutBtn = document.getElementById('mobile-navbar-sign-out');
+
+  async function handleSignOut() {
+    await signOut();
+    window.location.href = '/';
+  }
+
+  signOutBtn?.addEventListener('click', handleSignOut);
+  mobileSignOutBtn?.addEventListener('click', handleSignOut);
+}
+
+function wireAuthState() {
+  getSession().then(({ session }) => renderAuthActions(session ?? null));
+  onAuthStateChange((session) => renderAuthActions(session));
 }
