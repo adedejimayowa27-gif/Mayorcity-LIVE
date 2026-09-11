@@ -14,7 +14,7 @@ export function initFooter({ mountId = 'footer-root' } = {}) {
 
         <nav class="footer-links" aria-label="Footer">
           <a href="/#how-it-works">How it works</a>
-          <a href="/#use-cases">Use cases</a>
+          <a href="/events.html">Events</a>
           <a href="/signin.html">Sign in</a>
           <a href="/signup.html">Start broadcasting</a>
         </nav>
