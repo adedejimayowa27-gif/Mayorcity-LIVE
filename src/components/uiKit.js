@@ -3,6 +3,8 @@
 // real data instead of re-inventing the markup, which is how the same
 // visual language stays consistent as features are added.
 
+import { escapeHtml } from '../utils/dom.js';
+
 export function createLiveBadge(label = 'Live') {
   return `
     <span class="badge badge-live">
@@ -19,9 +21,9 @@ export function createEventCard(event) {
   const { title, category, viewers, isLive } = event;
   return `
     <article class="card card-hover">
-      ${isLive ? createLiveBadge() : `<span class="badge">${category}</span>`}
-      <h3 class="card-title" style="margin-top: var(--space-4)">${title}</h3>
-      <p class="card-body">${category}${viewers ? ` &middot; ${viewers} watching` : ''}</p>
+      ${isLive ? createLiveBadge() : `<span class="badge">${escapeHtml(category)}</span>`}
+      <h3 class="card-title" style="margin-top: var(--space-4)">${escapeHtml(title)}</h3>
+      <p class="card-body">${escapeHtml(category)}${viewers ? ` &middot; ${viewers} watching` : ''}</p>
     </article>
   `;
 }
@@ -81,8 +83,8 @@ export function renderOverlayHtml(overlay) {
     if (!heading && !subheading) return '';
     return `
       <div class="overlay-programme">
-        ${heading ? `<div class="overlay-programme-heading">${heading}</div>` : ''}
-        ${subheading ? `<div class="overlay-programme-subheading">${subheading}</div>` : ''}
+        ${heading ? `<div class="overlay-programme-heading">${escapeHtml(heading)}</div>` : ''}
+        ${subheading ? `<div class="overlay-programme-subheading">${escapeHtml(subheading)}</div>` : ''}
       </div>
     `;
   }
@@ -91,11 +93,11 @@ export function renderOverlayHtml(overlay) {
     const { teamA = 'Team A', teamB = 'Team B', scoreA = 0, scoreB = 0 } = overlay.scoreboard || {};
     return `
       <div class="overlay-scoreboard">
-        <span class="overlay-scoreboard-team">${teamA}</span>
+        <span class="overlay-scoreboard-team">${escapeHtml(teamA)}</span>
         <span class="overlay-scoreboard-score">${scoreA}</span>
         <span class="overlay-scoreboard-dash">&ndash;</span>
         <span class="overlay-scoreboard-score">${scoreB}</span>
-        <span class="overlay-scoreboard-team">${teamB}</span>
+        <span class="overlay-scoreboard-team">${escapeHtml(teamB)}</span>
       </div>
     `;
   }
