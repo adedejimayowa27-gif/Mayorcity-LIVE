@@ -1,193 +1,173 @@
-import { requireAuth } from '../utils/authGuard.js';
-import { signOut } from '../services/authService.js';
-import {
-  EVENT_CATEGORIES,
-  createEvent,
-  getMyEvents,
-  updateEvent,
-  deleteEvent
-} from '../services/eventsService.js';
-import { initToastRegion, showToast } from '../components/toast.js';
-import { createLoadingState, createEmptyState, createErrorState, createLiveBadge } from '../components/uiKit.js';
-import { setButtonLoading } from '../utils/dom.js';
+/* Public events listing + event detail page layout. */
 
-initToastRegion();
-
-const dashActions = document.getElementById('dash-actions');
-const dashWelcome = document.getElementById('dash-welcome');
-const eventsList = document.getElementById('events-list');
-const form = document.getElementById('create-event-form');
-const categorySelect = document.getElementById('event-category');
-const submitBtn = form.querySelector('button[type="submit"]');
-
-// Holds the confirmed session once init() resolves. Every handler below
-// reads this rather than taking it as a parameter, since they're all
-// wired up only after init() has already set it.
-let session = null;
-
-function formatScheduledFor(value) {
-  if (!value) return 'No date set';
-  return new Date(value).toLocaleString(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short'
-  });
+.events-page-header {
+  margin-bottom: var(--space-7);
 }
 
-function categoryLabel(value) {
-  return EVENT_CATEGORIES.find((c) => c.value === value)?.label || value;
+.events-filters {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+  flex-wrap: wrap;
 }
 
-function eventCardHtml(event) {
-  const badge = event.status === 'live' ? createLiveBadge() : `<span class="badge">${categoryLabel(event.category)}</span>`;
-  const isCancelled = event.status === 'cancelled';
-
-  return `
-    <article class="card dash-event-card" data-event-id="${event.id}">
-      <div>
-        ${badge}
-        <h3 class="card-title" style="margin-top: var(--space-3);">${event.title}</h3>
-        ${event.description ? `<p class="card-body">${event.description}</p>` : ''}
-        <p class="dash-event-meta">${formatScheduledFor(event.scheduled_for)}${isCancelled ? ' &middot; Cancelled' : ''}</p>
-      </div>
-      <div class="dash-event-actions">
-        ${
-          event.status === 'scheduled'
-            ? `<button class="btn btn-secondary" type="button" data-action="cancel">Cancel</button>`
-            : ''
-        }
-        <button class="btn btn-ghost" type="button" data-action="delete">Delete</button>
-      </div>
-    </article>
-  `;
+.events-filter-btn {
+  min-height: 40px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-full);
+  border: var(--border-width) solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--duration-base) var(--ease-standard), color var(--duration-base) var(--ease-standard);
 }
 
-async function loadEvents() {
-  eventsList.innerHTML = createLoadingState('Loading your events…');
+.events-filter-btn:hover {
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+}
 
-  const { data, error } = await getMyEvents(session.user.id);
+.events-filter-btn[aria-pressed="true"] {
+  background: var(--color-text);
+  color: var(--color-bg);
+  border-color: var(--color-text);
+}
 
-  if (error) {
-    eventsList.innerHTML = createErrorState({ body: error, onRetry: true });
-    eventsList.querySelector('[data-retry]')?.addEventListener('click', loadEvents);
-    return;
+.events-grid {
+  display: grid;
+  gap: var(--space-5);
+}
+
+@media (min-width: 640px) {
+  .events-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
+}
 
-  if (!data || data.length === 0) {
-    eventsList.innerHTML = createEmptyState({
-      title: 'No events yet',
-      body: 'Create your first event above to see it here.'
-    });
-    return;
+@media (min-width: 960px) {
+  .events-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
-
-  eventsList.innerHTML = `<div class="dash-events-list">${data.map(eventCardHtml).join('')}</div>`;
-
-  eventsList.querySelectorAll('[data-action="cancel"]').forEach((btn) => {
-    btn.addEventListener('click', () => handleCancel(btn));
-  });
-  eventsList.querySelectorAll('[data-action="delete"]').forEach((btn) => {
-    btn.addEventListener('click', () => handleDelete(btn));
-  });
 }
 
-async function handleCancel(btn) {
-  const card = btn.closest('[data-event-id]');
-  const id = card.dataset.eventId;
-  btn.disabled = true;
-
-  const { error } = await updateEvent(id, { status: 'cancelled' });
-
-  if (error) {
-    showToast(error, { title: "Couldn't cancel event", variant: 'error' });
-    btn.disabled = false;
-    return;
-  }
-
-  showToast('Event cancelled.', { variant: 'success' });
-  loadEvents();
+.event-list-card {
+  display: block;
+  height: 100%;
 }
 
-async function handleDelete(btn) {
-  const card = btn.closest('[data-event-id]');
-  const id = card.dataset.eventId;
-
-  if (!window.confirm('Delete this event? This can\u2019t be undone.')) return;
-
-  btn.disabled = true;
-  const { error } = await deleteEvent(id);
-
-  if (error) {
-    showToast(error, { title: "Couldn't delete event", variant: 'error' });
-    btn.disabled = false;
-    return;
-  }
-
-  showToast('Event deleted.', { variant: 'success' });
-  loadEvents();
+.event-list-card .card {
+  height: 100%;
 }
 
-function setFieldError(fieldId, errorId, hasError) {
-  document.getElementById(fieldId).classList.toggle('field-error', hasError);
-  document.getElementById(errorId).hidden = !hasError;
+/* ---- Event detail page ---- */
+
+.event-detail-shell {
+  max-width: 760px;
+  margin-inline: auto;
 }
 
-form.addEventListener('submit', async (event) => {
-  event.preventDefault();
-
-  const title = document.getElementById('event-title').value.trim();
-  const description = document.getElementById('event-description').value.trim();
-  const scheduledFor = document.getElementById('event-scheduled').value;
-  const category = categorySelect.value;
-
-  const titleValid = title.length > 0;
-  setFieldError('title-field', 'title-error', !titleValid);
-  if (!titleValid) return;
-
-  setButtonLoading(submitBtn, true, 'Creating…');
-
-  const { error } = await createEvent({
-    title,
-    description,
-    category,
-    scheduledFor: scheduledFor ? new Date(scheduledFor).toISOString() : null,
-    hostId: session.user.id
-  });
-
-  setButtonLoading(submitBtn, false);
-
-  if (error) {
-    showToast(error, { title: "Couldn't create event", variant: 'error' });
-    return;
-  }
-
-  showToast('Event created.', { variant: 'success' });
-  form.reset();
-  loadEvents();
-});
-
-// Everything that depends on a confirmed session lives inside this async
-// function instead of at the top level, so the build doesn't rely on
-// top-level await (unsupported in some build/browser targets).
-async function init() {
-  // Redirects to /signin.html if there's no session — everything below
-  // only runs for a signed-in user.
-  session = await requireAuth();
-  const displayName = session.user?.user_metadata?.full_name || session.user?.email;
-
-  dashActions.innerHTML = `<button class="btn btn-secondary" type="button" id="dash-sign-out">Sign out</button>`;
-  document.getElementById('dash-sign-out').addEventListener('click', async () => {
-    await signOut();
-    window.location.href = '/';
-  });
-
-  dashWelcome.innerHTML = `
-    <h1>Welcome, ${displayName}</h1>
-    <p>Create an event below, then manage it here until broadcasting goes live in a future update.</p>
-  `;
-
-  categorySelect.innerHTML = EVENT_CATEGORIES.map((c) => `<option value="${c.value}">${c.label}</option>`).join('');
-
-  loadEvents();
+.event-detail-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-6);
 }
 
-init();
+.event-detail-back:hover {
+  color: var(--color-text);
+}
+
+.event-detail-header {
+  margin-top: var(--space-6);
+  margin-bottom: var(--space-3);
+}
+
+.event-detail-header h1 {
+  font-size: var(--text-2xl);
+  margin-top: var(--space-3);
+}
+
+.event-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.event-detail-description {
+  margin-top: var(--space-6);
+  font-size: var(--text-md);
+  max-width: 60ch;
+}
+
+.event-detail-monitor-note {
+  margin-top: var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+  text-align: center;
+}
+
+/* ---- Viewer player controls ---- */
+
+.player-connecting {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  background: rgba(10, 11, 13, 0.5);
+}
+
+.player-controls {
+  position: absolute;
+  bottom: var(--space-3);
+  right: var(--space-3);
+  display: flex;
+  gap: var(--space-2);
+}
+
+.player-control-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  border: var(--border-width) solid rgba(255, 255, 255, 0.15);
+  background: rgba(10, 11, 13, 0.6);
+  color: var(--color-text);
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+}
+
+.player-control-btn:hover {
+  background: rgba(10, 11, 13, 0.85);
+}
+
+.player-unmute-prompt {
+  position: absolute;
+  bottom: var(--space-3);
+  left: var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  background: rgba(10, 11, 13, 0.7);
+  border: var(--border-width) solid rgba(255, 255, 255, 0.15);
+  color: var(--color-text);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+}
