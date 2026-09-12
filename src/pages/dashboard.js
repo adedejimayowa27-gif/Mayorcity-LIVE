@@ -9,7 +9,8 @@ import {
 } from '../services/eventsService.js';
 import { initToastRegion, showToast } from '../components/toast.js';
 import { createLoadingState, createEmptyState, createErrorState, createLiveBadge } from '../components/uiKit.js';
-import { setButtonLoading } from '../utils/dom.js';
+import { setButtonLoading, escapeHtml } from '../utils/dom.js';
+import { getProfile } from '../services/profileService.js';
 
 initToastRegion();
 
@@ -45,8 +46,8 @@ function eventCardHtml(event) {
     <article class="card dash-event-card" data-event-id="${event.id}">
       <div>
         ${badge}
-        <h3 class="card-title" style="margin-top: var(--space-3);">${event.title}</h3>
-        ${event.description ? `<p class="card-body">${event.description}</p>` : ''}
+        <h3 class="card-title" style="margin-top: var(--space-3);">${escapeHtml(event.title)}</h3>
+        ${event.description ? `<p class="card-body">${escapeHtml(event.description)}</p>` : ''}
         <p class="dash-event-meta">${formatScheduledFor(event.scheduled_for)}${isCancelled ? ' &middot; Cancelled' : ''}</p>
       </div>
       <div class="dash-event-actions">
@@ -185,8 +186,17 @@ async function init() {
     window.location.href = '/';
   });
 
+  const { data: profile } = await getProfile(session.user.id);
+  if (profile?.role === 'admin') {
+    const adminLink = document.createElement('a');
+    adminLink.className = 'btn btn-ghost';
+    adminLink.href = '/admin.html';
+    adminLink.textContent = 'Admin';
+    dashActions.insertAdjacentElement('afterbegin', adminLink);
+  }
+
   dashWelcome.innerHTML = `
-    <h1>Welcome, ${displayName}</h1>
+    <h1>Welcome, ${escapeHtml(displayName)}</h1>
     <p>Create an event below, then manage it here until broadcasting goes live in a future update.</p>
   `;
 
