@@ -16,7 +16,8 @@ export default defineConfig({
         dashboard: resolve(__dirname, 'dashboard.html'),
         events: resolve(__dirname, 'events.html'),
         event: resolve(__dirname, 'event.html'),
-        broadcast: resolve(__dirname, 'broadcast.html')
+        broadcast: resolve(__dirname, 'broadcast.html'),
+        admin: resolve(__dirname, 'admin.html')
       }
     }
   }
