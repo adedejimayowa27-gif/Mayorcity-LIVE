@@ -86,9 +86,13 @@ create table if not exists public.events (
   category text not null default 'general', -- 'class' | 'football' | 'church' | 'school' | 'conference' | 'general'
   status text not null default 'scheduled', -- 'scheduled' | 'live' | 'ended' | 'cancelled'
   scheduled_for timestamptz,
+  overlay jsonb, -- Batch 6: current programme graphic / scoreboard overlay, e.g.
+                 -- { "type": "scoreboard", "visible": true, "programme": {...}, "scoreboard": {...} }
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.events add column if not exists overlay jsonb;
 
 alter table public.events enable row level security;
 
