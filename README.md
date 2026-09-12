@@ -208,11 +208,16 @@ image file isn't included in this batch — add a 1200×630 PNG at
   and hosting an event requires signing in
 - `supabase/schema.sql` now enables Realtime on the `events` table
 
-**Not included yet, by design:** recording/playback of past broadcasts,
-picture-in-quality controls, multi-camera/co-host support, real-time chat,
-football scoreboard overlays, and the dedicated broadcaster control centre
-(this batch's `broadcast.html` is intentionally minimal — Batch 7 replaces
-it with the full control centre).
+### To actually use LiveKit
+
+1. Create a project at [livekit.io](https://livekit.io) (or self-host) to get
+   a project URL, API key, and API secret.
+2. In Netlify: **Site settings → Environment variables**, add
+   `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET` (server-side only — do not
+   prefix with `VITE_`).
+3. In your local `.env` **and** in Netlify's environment variables, set
+   `VITE_LIVEKIT_URL` to your LiveKit project's `wss://` URL (this one is
+   fine to expose — it's not a secret).
 
 ## What's in Batch 5
 
@@ -226,22 +231,26 @@ it with the full control centre).
   watching, the player cleans up and the toast tells you what happened,
   instead of leaving a stuck video frame
 
-**Not included yet, by design:** recording/playback of past broadcasts,
-picture-in-quality controls, multi-camera/co-host support, real-time chat,
-football scoreboard overlays, and the dedicated broadcaster control centre
-(this batch's `broadcast.html` is intentionally minimal — Batch 7 replaces
-it with the full control centre).
+## What's in Batch 6
 
-### To actually use LiveKit
+- `events` table gains an `overlay` JSON column holding whichever graphic is
+  currently showing
+- Host controls on `broadcast.html`: a **programme graphic** (heading +
+  subheading lower-third, for classes/church/school/conference events) and,
+  for events in the **football** category, a live **scoreboard** (editable
+  team names, tap +/- to change the score)
+- The overlay renders identically on the host's own preview and every
+  viewer's player — same markup, same data, updated instantly through the
+  Realtime subscription already in place since Batch 4/5
+- Overlay updates no longer rebuild the whole viewer page — only the
+  overlay layer refreshes, so the live video keeps playing uninterrupted
+  while a host adjusts a score
 
-1. Create a project at [livekit.io](https://livekit.io) (or self-host) to get
-   a project URL, API key, and API secret.
-2. In Netlify: **Site settings → Environment variables**, add
-   `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET` (server-side only — do not
-   prefix with `VITE_`).
-3. In your local `.env` **and** in Netlify's environment variables, set
-   `VITE_LIVEKIT_URL` to your LiveKit project's `wss://` URL (this one is
-   fine to expose — it's not a secret).
+**Not included yet, by design (Batches 4–6):** recording/playback of past
+broadcasts, picture-quality controls, multi-camera/co-host support,
+real-time chat, and the dedicated broadcaster control centre (this batch's
+`broadcast.html` is intentionally minimal — Batch 7 replaces it with the
+full control centre).
 
 ## Roadmap
 
@@ -249,10 +258,10 @@ it with the full control centre).
 |---|---|
 | 1 | Foundation, design system, public UI ✅ |
 | 2 | Authentication and user system ✅ |
-| 3 | Events and broadcast management ✅ *(this repo)* |
-| 4 | LiveKit live video/audio broadcasting ✅ *(this repo)* |
-| 5 | Premium viewer experience ✅ *(this repo)* |
-| 6 | Broadcast overlays, programme graphics, football scoreboard |
+| 3 | Events and broadcast management ✅ |
+| 4 | LiveKit live video/audio broadcasting ✅ |
+| 5 | Premium viewer experience ✅ |
+| 6 | Broadcast overlays, programme graphics, football scoreboard ✅ *(this repo)* |
 | 7 | Broadcaster control centre |
 | 8 | Realtime chat and audience engagement |
 | 9 | Admin dashboard and analytics |
