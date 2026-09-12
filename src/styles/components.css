@@ -505,6 +505,95 @@
 }
 
 /* ==========================================================================
+   Broadcast overlays — programme graphic + football scoreboard.
+   Rendered identically on the host's preview (broadcast.html) and every
+   viewer's player (event.html) from the same `overlay` JSON field.
+   ========================================================================== */
+
+.monitor-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.overlay-programme {
+  position: absolute;
+  left: var(--space-4);
+  bottom: var(--space-4);
+  max-width: calc(100% - var(--space-8));
+  padding: var(--space-3) var(--space-5);
+  background: rgba(10, 11, 13, 0.72);
+  border-left: 3px solid var(--color-signal);
+  border-radius: var(--radius-sm);
+  backdrop-filter: blur(6px);
+  animation: overlay-slide-in var(--duration-slow) var(--ease-standard);
+}
+
+.overlay-programme-heading {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.overlay-programme-subheading {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.overlay-scoreboard {
+  position: absolute;
+  top: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-5);
+  background: rgba(10, 11, 13, 0.75);
+  border: var(--border-width) solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(6px);
+  font-family: var(--font-display);
+  animation: overlay-slide-in var(--duration-slow) var(--ease-standard);
+}
+
+.overlay-scoreboard-team {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--color-text);
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overlay-scoreboard-score {
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--color-signal);
+  min-width: 1.2em;
+  text-align: center;
+}
+
+.overlay-scoreboard-dash {
+  color: var(--color-text-faint);
+}
+
+@keyframes overlay-slide-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay-programme,
+  .overlay-scoreboard {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
    Loading / empty / error states — reused wherever a list or panel can be
    empty, loading, or broken (dashboards in later batches included).
    ========================================================================== */
