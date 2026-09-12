@@ -2,7 +2,7 @@ import { requireAuth } from '../utils/authGuard.js';
 import { getEventById, updateEvent } from '../services/eventsService.js';
 import { connectAsHost, RoomEvent } from '../services/broadcastService.js';
 import { initToastRegion, showToast } from '../components/toast.js';
-import { createErrorState, createLiveBadge } from '../components/uiKit.js';
+import { createErrorState, createLiveBadge, renderOverlayHtml } from '../components/uiKit.js';
 import { setButtonLoading } from '../utils/dom.js';
 
 initToastRegion();
@@ -11,7 +11,15 @@ const shell = document.getElementById('broadcast-shell');
 
 let room = null;
 let event = null;
-let cameraOn = false;
+
+// Local working copy of the overlay. Kept even when hidden, so toggling
+// visibility off and back on doesn't lose typed-in team names/scores.
+let overlayState = {
+  type: null,
+  visible: false,
+  programme: { heading: '', subheading: '' },
+  scoreboard: { teamA: 'Team A', teamB: 'Team B', scoreA: 0, scoreB: 0 }
+};
 
 function shareUrl(eventId) {
   return `${window.location.origin}/event.html?id=${eventId}`;
@@ -19,6 +27,7 @@ function shareUrl(eventId) {
 
 function renderBroadcastUI() {
   const isLive = event.status === 'live';
+  const isFootball = event.category === 'football';
 
   shell.innerHTML = `
     <div class="broadcast-header">
@@ -33,6 +42,7 @@ function renderBroadcastUI() {
         ${isLive ? createLiveBadge() : ''}
       </div>
       ${isLive ? '<span class="hero-monitor-viewers" id="host-viewer-count" style="position:absolute;top:var(--space-4);right:var(--space-4);">0 watching</span>' : ''}
+      <div class="monitor-overlay" id="host-monitor-overlay">${renderOverlayHtml(overlayState)}</div>
     </div>
 
     <div class="broadcast-controls">
@@ -52,26 +62,148 @@ function renderBroadcastUI() {
         <button class="btn btn-secondary" type="button" id="copy-link">Copy</button>
       </div>
     </div>
+
+    <div class="card overlay-panel">
+      <div class="overlay-panel-header">
+        <h2>Programme graphic</h2>
+        <button class="btn btn-secondary" type="button" id="toggle-programme">
+          ${overlayState.visible && overlayState.type === 'programme' ? 'Hide' : 'Show'}
+        </button>
+      </div>
+      <div class="field">
+        <label class="field-label" for="programme-heading">Heading</label>
+        <input class="input" type="text" id="programme-heading" placeholder="e.g. Beyond the Classroom" value="${overlayState.programme.heading}" />
+      </div>
+      <div class="field" style="margin-bottom: 0;">
+        <label class="field-label" for="programme-subheading">Subheading</label>
+        <input class="input" type="text" id="programme-subheading" placeholder="e.g. Riverside Secondary School" value="${overlayState.programme.subheading}" />
+      </div>
+    </div>
+
+    ${
+      isFootball
+        ? `
+    <div class="card overlay-panel">
+      <div class="overlay-panel-header">
+        <h2>Scoreboard</h2>
+        <button class="btn btn-secondary" type="button" id="toggle-scoreboard">
+          ${overlayState.visible && overlayState.type === 'scoreboard' ? 'Hide' : 'Show'}
+        </button>
+      </div>
+
+      <div class="dash-form-row" style="margin-bottom: var(--space-4);">
+        <div class="field" style="margin-bottom: 0;">
+          <label class="field-label" for="team-a-name">Team A</label>
+          <input class="input" type="text" id="team-a-name" value="${overlayState.scoreboard.teamA}" />
+        </div>
+        <div class="field" style="margin-bottom: 0;">
+          <label class="field-label" for="team-b-name">Team B</label>
+          <input class="input" type="text" id="team-b-name" value="${overlayState.scoreboard.teamB}" />
+        </div>
+      </div>
+
+      <div class="overlay-score-row">
+        <span class="field-label">${overlayState.scoreboard.teamA} score</span>
+        <div class="overlay-score-controls">
+          <button class="overlay-score-btn" type="button" data-score="a" data-delta="-1" aria-label="Decrease Team A score">&minus;</button>
+          <span class="overlay-score-value" id="score-a-value">${overlayState.scoreboard.scoreA}</span>
+          <button class="overlay-score-btn" type="button" data-score="a" data-delta="1" aria-label="Increase Team A score">+</button>
+        </div>
+      </div>
+
+      <div class="overlay-score-row" style="margin-bottom: 0;">
+        <span class="field-label">${overlayState.scoreboard.teamB} score</span>
+        <div class="overlay-score-controls">
+          <button class="overlay-score-btn" type="button" data-score="b" data-delta="-1" aria-label="Decrease Team B score">&minus;</button>
+          <span class="overlay-score-value" id="score-b-value">${overlayState.scoreboard.scoreB}</span>
+          <button class="overlay-score-btn" type="button" data-score="b" data-delta="1" aria-label="Increase Team B score">+</button>
+        </div>
+      </div>
+    </div>
+    `
+        : ''
+    }
   `;
 
   document.getElementById('toggle-camera').addEventListener('click', handleToggleCamera);
   document.getElementById('toggle-mic').addEventListener('click', handleToggleMic);
   document.getElementById('copy-link').addEventListener('click', handleCopyLink);
 
-  const goLiveBtn = document.getElementById('go-live');
-  goLiveBtn?.addEventListener('click', handleGoLive);
+  document.getElementById('go-live')?.addEventListener('click', handleGoLive);
+  document.getElementById('end-broadcast')?.addEventListener('click', handleEndBroadcast);
 
-  const endBtn = document.getElementById('end-broadcast');
-  endBtn?.addEventListener('click', handleEndBroadcast);
+  wireOverlayControls(isFootball);
+}
+
+function wireOverlayControls(isFootball) {
+  const headingInput = document.getElementById('programme-heading');
+  const subheadingInput = document.getElementById('programme-subheading');
+
+  headingInput.addEventListener('change', () => {
+    overlayState.programme.heading = headingInput.value.trim();
+    persistOverlay();
+  });
+  subheadingInput.addEventListener('change', () => {
+    overlayState.programme.subheading = subheadingInput.value.trim();
+    persistOverlay();
+  });
+
+  document.getElementById('toggle-programme').addEventListener('click', () => {
+    const alreadyShowing = overlayState.visible && overlayState.type === 'programme';
+    overlayState.type = alreadyShowing ? overlayState.type : 'programme';
+    overlayState.visible = !alreadyShowing;
+    persistOverlay();
+    renderBroadcastUI();
+  });
+
+  if (!isFootball) return;
+
+  const teamAInput = document.getElementById('team-a-name');
+  const teamBInput = document.getElementById('team-b-name');
+
+  teamAInput.addEventListener('change', () => {
+    overlayState.scoreboard.teamA = teamAInput.value.trim() || 'Team A';
+    persistOverlay();
+    renderBroadcastUI();
+  });
+  teamBInput.addEventListener('change', () => {
+    overlayState.scoreboard.teamB = teamBInput.value.trim() || 'Team B';
+    persistOverlay();
+    renderBroadcastUI();
+  });
+
+  document.getElementById('toggle-scoreboard').addEventListener('click', () => {
+    const alreadyShowing = overlayState.visible && overlayState.type === 'scoreboard';
+    overlayState.type = alreadyShowing ? overlayState.type : 'scoreboard';
+    overlayState.visible = !alreadyShowing;
+    persistOverlay();
+    renderBroadcastUI();
+  });
+
+  shell.querySelectorAll('[data-score]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const team = btn.dataset.score === 'a' ? 'scoreA' : 'scoreB';
+      const delta = Number(btn.dataset.delta);
+      overlayState.scoreboard[team] = Math.max(0, overlayState.scoreboard[team] + delta);
+      document.getElementById(`score-${btn.dataset.score}-value`).textContent = overlayState.scoreboard[team];
+      persistOverlay();
+    });
+  });
+}
+
+async function persistOverlay() {
+  document.getElementById('host-monitor-overlay').innerHTML = renderOverlayHtml(overlayState);
+  const { error } = await updateEvent(event.id, { overlay: overlayState });
+  if (error) showToast(error, { title: "Couldn't update overlay", variant: 'error' });
 }
 
 async function handleToggleCamera(e) {
   const btn = e.currentTarget;
+  const cameraOn = room.localParticipant.isCameraEnabled;
   setButtonLoading(btn, true, cameraOn ? 'Stopping…' : 'Starting…');
 
   try {
     await room.localParticipant.setCameraEnabled(!cameraOn);
-    cameraOn = !cameraOn;
   } catch (err) {
     showToast('Could not access your camera. Check your browser permissions.', {
       title: 'Camera error',
@@ -81,15 +213,15 @@ async function handleToggleCamera(e) {
     return;
   }
 
-  setButtonLoading(btn, false, cameraOn ? 'Stop camera' : 'Start camera');
-  document.getElementById('toggle-mic').disabled = !cameraOn;
-  document.getElementById('monitor-placeholder').style.display = cameraOn ? 'none' : 'flex';
+  const nowOn = room.localParticipant.isCameraEnabled;
+  setButtonLoading(btn, false, nowOn ? 'Stop camera' : 'Start camera');
+  document.getElementById('toggle-mic').disabled = !nowOn;
+  document.getElementById('monitor-placeholder').style.display = nowOn ? 'none' : 'flex';
 
   const goLiveBtn = document.getElementById('go-live');
-  if (goLiveBtn) goLiveBtn.disabled = !cameraOn;
+  if (goLiveBtn) goLiveBtn.disabled = !nowOn;
 
-  if (cameraOn) {
-    // Enable the mic alongside the camera by default; the host can mute after.
+  if (nowOn) {
     await room.localParticipant.setMicrophoneEnabled(true);
   }
 }
@@ -152,6 +284,12 @@ function reattachVideo() {
   }
 }
 
+function updateHostViewerCount() {
+  const el = document.getElementById('host-viewer-count');
+  if (!el || !room) return;
+  el.textContent = `${room.remoteParticipants.size} watching`;
+}
+
 async function init() {
   const session = await requireAuth();
   const eventId = new URLSearchParams(window.location.search).get('id');
@@ -188,6 +326,8 @@ async function init() {
   }
 
   event = data;
+  if (event.overlay) overlayState = { ...overlayState, ...event.overlay };
+
   renderBroadcastUI();
 
   try {
@@ -207,12 +347,6 @@ async function init() {
   window.addEventListener('beforeunload', () => {
     room?.disconnect();
   });
-}
-
-function updateHostViewerCount() {
-  const el = document.getElementById('host-viewer-count');
-  if (!el || !room) return;
-  el.textContent = `${room.remoteParticipants.size} watching`;
 }
 
 init();
