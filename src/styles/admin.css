@@ -1,0 +1,89 @@
+/* Admin dashboard layout — reuses the dashboard shell/topbar but adds a
+   stats grid and data tables for platform-wide moderation. */
+
+.admin-shell {
+  max-width: 960px;
+  margin-inline: auto;
+  padding: var(--space-6) var(--space-5) var(--space-10);
+}
+
+@media (min-width: 768px) {
+  .admin-shell {
+    padding: var(--space-8) var(--space-8) var(--space-10);
+  }
+}
+
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-8);
+}
+
+@media (min-width: 640px) {
+  .admin-stats {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.admin-stat-card {
+  padding: var(--space-5);
+}
+
+.admin-stat-value {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+
+.admin-stat-label {
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+  margin-top: var(--space-1);
+}
+
+.admin-section {
+  margin-bottom: var(--space-8);
+}
+
+.admin-section h2 {
+  font-size: var(--text-md);
+  margin-bottom: var(--space-4);
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--border-width) solid var(--color-border);
+  white-space: nowrap;
+}
+
+.admin-table th {
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+  font-weight: 600;
+  background: var(--color-bg-elevated);
+}
+
+.admin-table tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table .btn {
+  min-height: 32px;
+  padding-inline: var(--space-3);
+  font-size: var(--text-xs);
+}
