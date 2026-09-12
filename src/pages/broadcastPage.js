@@ -32,6 +32,7 @@ function renderBroadcastUI() {
       <div class="broadcast-monitor-badge" id="monitor-badge">
         ${isLive ? createLiveBadge() : ''}
       </div>
+      ${isLive ? '<span class="hero-monitor-viewers" id="host-viewer-count" style="position:absolute;top:var(--space-4);right:var(--space-4);">0 watching</span>' : ''}
     </div>
 
     <div class="broadcast-controls">
@@ -114,6 +115,7 @@ async function handleGoLive(e) {
   showToast('You\u2019re live.', { variant: 'success' });
   renderBroadcastUI();
   reattachVideo();
+  updateHostViewerCount();
 }
 
 async function handleEndBroadcast(e) {
@@ -199,10 +201,18 @@ async function init() {
   }
 
   room.on(RoomEvent.LocalTrackPublished, reattachVideo);
+  room.on(RoomEvent.ParticipantConnected, updateHostViewerCount);
+  room.on(RoomEvent.ParticipantDisconnected, updateHostViewerCount);
 
   window.addEventListener('beforeunload', () => {
     room?.disconnect();
   });
+}
+
+function updateHostViewerCount() {
+  const el = document.getElementById('host-viewer-count');
+  if (!el || !room) return;
+  el.textContent = `${room.remoteParticipants.size} watching`;
 }
 
 init();
