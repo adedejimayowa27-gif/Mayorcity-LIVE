@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Allow: /events.html
+Allow: /event.html
+
+Disallow: /signin.html
+Disallow: /signup.html
+Disallow: /forgot-password.html
+Disallow: /reset-password.html
+Disallow: /dashboard.html
+Disallow: /broadcast.html
+Disallow: /admin.html
+
+Sitemap: https://your-domain.example/sitemap.xml
