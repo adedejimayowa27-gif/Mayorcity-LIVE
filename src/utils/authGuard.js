@@ -6,6 +6,7 @@
 // Batch 3+ dashboard pages should all start with this same call.
 
 import { getSession, onAuthStateChange } from '../services/authService.js';
+import { getProfile } from '../services/profileService.js';
 
 export function requireAuth({ redirectTo = '/signin.html' } = {}) {
   return new Promise((resolve) => {
@@ -36,4 +37,22 @@ export function requireAuth({ redirectTo = '/signin.html' } = {}) {
       }
     });
   });
+}
+
+/**
+ * Like requireAuth(), but also confirms the signed-in user's profile has
+ * role 'admin' — otherwise sends them to the regular dashboard instead of
+ * the sign-in page (they ARE signed in, just not an admin).
+ */
+export async function requireAdmin({ redirectTo = '/dashboard.html' } = {}) {
+  const session = await requireAuth();
+
+  const { data: profile, error } = await getProfile(session.user.id);
+
+  if (error || !profile || profile.role !== 'admin') {
+    window.location.href = redirectTo;
+    return new Promise(() => {}); // Never resolves — navigation is already underway.
+  }
+
+  return session;
 }
