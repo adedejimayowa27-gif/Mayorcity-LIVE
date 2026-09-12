@@ -79,16 +79,21 @@ mayorcity-live/
 ├── reset-password.html         Password reset confirmation (from emailed link)
 ├── dashboard.html              Signed-in: create/manage your events
 ├── broadcast.html              Host-only: full broadcaster control centre
-├── netlify.toml                Netlify build config
+├── admin.html                  Admin-only: platform stats, events, users
+├── netlify.toml                Netlify build config + security headers
 ├── vite.config.js              Multi-page build entries
 ├── .env.example                Template for local Supabase/LiveKit env vars
+├── TESTING.md                  Manual QA checklist (no test framework in this stack)
 ├── netlify/
 │   └── functions/
 │       └── create-livekit-token.mts   Mints LiveKit tokens server-side (secrets live here only)
 ├── supabase/
-│   └── schema.sql              Run in the Supabase SQL editor (profiles + events tables, RLS)
+│   └── schema.sql              Run in the Supabase SQL editor (tables, RLS, constraints)
 ├── public/
-│   └── favicon.svg
+│   ├── favicon.svg
+│   ├── 404.html                 Self-contained (no /src/styles dependency — see file comment)
+│   ├── robots.txt
+│   └── sitemap.xml
 └── src/
     ├── main.js                 Landing page entry script
     ├── pages/
@@ -99,17 +104,21 @@ mayorcity-live/
     │   ├── dashboard.js
     │   ├── events.js
     │   ├── eventDetail.js
-    │   └── broadcastPage.js
+    │   ├── broadcastPage.js
+    │   └── adminPage.js
     ├── components/              Reusable UI, shared across every page
     │   ├── navbar.js            Auth-aware: swaps sign-in/sign-out based on session
     │   ├── footer.js
     │   ├── toast.js
     │   ├── modal.js
-    │   └── uiKit.js             LiveBadge, EventCard, Loading/Empty/Error states
+    │   ├── uiKit.js             LiveBadge, EventCard, Loading/Empty/Error states
+    │   └── chatPanel.js         Shared chat UI (viewer page + host control centre)
     ├── services/
     │   ├── authService.js      All Supabase Auth calls go through here
+    │   ├── profileService.js   Profile reads + admin role management
     │   ├── eventsService.js    All `events` table reads/writes go through here
-    │   └── broadcastService.js LiveKit connection foundation (not wired into UI yet)
+    │   ├── chatService.js      All `chat_messages` reads/writes/Realtime go through here
+    │   └── broadcastService.js LiveKit connection (connectAsHost/connectAsViewer) (not wired into UI yet)
     ├── lib/
     │   └── supabaseClient.js    Single shared Supabase client
     ├── styles/
@@ -120,7 +129,9 @@ mayorcity-live/
     │   ├── auth.css             Auth-page-specific layout
     │   ├── dashboard.css        Dashboard shell + events management layout
     │   ├── events.css           Public events listing + detail layout
-    │   └── broadcast.css        Host camera preview + controls layout
+    │   ├── broadcast.css        Host camera preview + controls layout
+    │   ├── chat.css             Shared chat panel layout
+    │   └── admin.css            Admin dashboard layout
     └── utils/
         ├── dom.js               Small DOM + validation + button-loading helpers
         └── authGuard.js         requireAuth() — protects pages that need a session
@@ -274,6 +285,100 @@ narrow column:
 picture-quality controls, multi-camera/co-host support, and real-time chat
 (Batch 8).
 
+## What's in Batch 8
+
+- `chat_messages` table (RLS + Realtime) — one row per message, `author_id`
+  nullable since viewers still don't need an account to chat
+- `chatService.js` — send/read/delete messages, plus a Realtime
+  subscription so new messages (and host deletions) appear instantly
+- `chatPanel.js` — one shared chat component mounted on both `event.html`
+  (viewers) and inside `broadcast.html`'s control centre (a new **Chat**
+  tab, third alongside Overlays and Settings)
+- Signed-in users chat under their profile name automatically; anonymous
+  viewers are asked for a display name once, remembered for that browser
+  session (not stored permanently)
+- The host can delete any message in their own event's chat (a small
+  &times; next to each message, host view only) — the only moderation tool
+  in this batch; anyone can otherwise post, so treat this as a starting
+  point, not a finished moderation system
+
+**Not included yet, by design:** message reactions/emoji, muting or
+banning a specific viewer, profanity filtering, and the admin-level
+moderation/analytics tooling that's Batch 9.
+
+## What's in Batch 9
+
+- `is_admin()` SQL helper + RLS policies giving the `admin` role (already
+  scaffolded on `profiles` since Batch 2) visibility into every event,
+  every user, and every chat message — not just their own
+- `admin.html` — stats (total events, live now, total users, total chat
+  messages), a table of every event platform-wide with a Cancel action, and
+  a table of every user with a Make admin / Remove admin toggle
+- `profileService.js` (new) and `requireAdmin()` in `authGuard.js` — the
+  admin page redirects any signed-in non-admin straight back to their
+  regular dashboard, not to sign-in (they ARE signed in, just not an admin)
+- `events.peak_viewers` — the highest concurrent viewer count a broadcast
+  reached, recorded automatically while the host is live, shown in the
+  admin events table
+- Admins get an "Admin" link on their regular dashboard; everyone else
+  doesn't see it at all
+
+### Making your first admin
+
+Every new account defaults to the `broadcaster` role. To promote yourself
+(or anyone) to admin, run this once in the Supabase SQL editor:
+
+```sql
+update public.profiles set role = 'admin' where id =
+  (select id from auth.users where email = 'you@example.com');
+```
+
+**Not included yet, by design:** granular audit logs, per-event analytics
+charts over time, exporting data, and email/notification tooling — this
+batch is the moderation and visibility foundation, not a full BI dashboard.
+
+## What's in Batch 10
+
+- **Security fix:** event titles/descriptions, overlay text (programme
+  graphic, scoreboard team names), chat messages, and profile names were
+  being inserted as raw HTML in several places — a host or any signed-up
+  user could have typed `<script>` into those fields and had it execute in
+  other people's browsers (stored XSS). Every one of those spots now goes
+  through `escapeHtml()` (`src/utils/dom.js`), and toasts are now built
+  with real DOM nodes instead of `innerHTML` entirely
+- Server-side length limits on event title/description (`schema.sql`),
+  backing up the existing client-side checks — the client-side ones alone
+  can be bypassed by anyone calling the Supabase API directly
+- `netlify.toml`: security response headers (X-Frame-Options,
+  X-Content-Type-Options, Referrer-Policy, a camera/microphone-scoped
+  Permissions-Policy, and a Content-Security-Policy), plus long-lived
+  cache headers for Vite's content-hashed build assets
+- A real `public/404.html` instead of redirecting unknown paths to the
+  homepage with a 404 status
+- `public/robots.txt` and `public/sitemap.xml` — SEO foundation from
+  Batch 1, finished
+- `TESTING.md` — a manual QA checklist covering every batch, since this
+  stack intentionally has no test framework (per the original "no
+  unnecessary dependencies" constraint); run through it before any real
+  launch
+
+### Before you actually launch
+
+1. Run through **every item in `TESTING.md`**, on a real phone as well as
+   desktop.
+2. Add a real `public/og-image.png` (1200×630) — noted as a gap since
+   Batch 1, still not filled in.
+3. Update the domain placeholders in `public/sitemap.xml` and
+   `public/robots.txt` to your real domain.
+4. If you ever self-host LiveKit instead of using livekit.cloud, update
+   the `connect-src` line in `netlify.toml`'s Content-Security-Policy to
+   match your LiveKit domain, or video/chat connections will be silently
+   blocked by the browser.
+5. Turn Supabase's email confirmation back on if you disabled it for
+   testing (Authentication → Providers → Email → Confirm email), and set
+   up a real SMTP provider (Resend/Postmark/SendGrid) instead of
+   Supabase's rate-limited default sender — see the Batch 2 section above.
+
 ## Roadmap
 
 | Batch | Scope |
@@ -284,7 +389,13 @@ picture-quality controls, multi-camera/co-host support, and real-time chat
 | 4 | LiveKit live video/audio broadcasting ✅ |
 | 5 | Premium viewer experience ✅ |
 | 6 | Broadcast overlays, programme graphics, football scoreboard ✅ |
-| 7 | Broadcaster control centre ✅ *(this repo)* |
-| 8 | Realtime chat and audience engagement |
-| 9 | Admin dashboard and analytics |
-| 10 | Security, optimization, testing, production deployment |
+| 7 | Broadcaster control centre ✅ |
+| 8 | Realtime chat and audience engagement ✅ |
+| 9 | Admin dashboard and analytics ✅ |
+| 10 | Security, optimization, testing, production deployment ✅ *(this repo)* |
+
+All 10 batches are complete. From here, further work is refinement and
+real-world feedback rather than new foundational pieces — see "Not
+included yet, by design" notes throughout this README for the specific
+gaps left at each layer (recording/playback, co-hosts, moderation tooling,
+analytics charts, etc.) if you want to keep building.
