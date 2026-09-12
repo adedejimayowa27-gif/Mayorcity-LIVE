@@ -72,6 +72,7 @@ export async function updateEvent(id, updates) {
   if (updates.category !== undefined) payload.category = updates.category;
   if (updates.status !== undefined) payload.status = updates.status;
   if (updates.scheduledFor !== undefined) payload.scheduled_for = updates.scheduledFor;
+  if (updates.overlay !== undefined) payload.overlay = updates.overlay;
 
   const { data, error } = await supabase.from('events').update(payload).eq('id', id).select().single();
   if (error) return { error: mapEventsError(error) };
