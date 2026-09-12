@@ -159,3 +159,63 @@ begin
     alter publication supabase_realtime add table public.events;
   end if;
 end $$;
+
+-- ============================================================================
+-- Batch 8 — chat and audience engagement
+-- ============================================================================
+--
+-- One row per chat message on an event. Viewers don't need an account
+-- (see Batch 4), so author_id is nullable — anonymous viewers chat under
+-- a display name they type in, kept only for their browser session.
+
+create table if not exists public.chat_messages (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references public.events (id) on delete cascade,
+  author_id uuid references public.profiles (id) on delete set null,
+  author_name text not null check (char_length(author_name) between 1 and 40),
+  body text not null check (char_length(body) between 1 and 500),
+  created_at timestamptz not null default now()
+);
+
+alter table public.chat_messages enable row level security;
+
+drop policy if exists "Chat is viewable by anyone" on public.chat_messages;
+create policy "Chat is viewable by anyone"
+  on public.chat_messages for select
+  to anon, authenticated
+  using (true);
+
+-- Anyone can chat, signed in or not — matches "viewers don't need an
+-- account" from Batch 4. Basic length limits above are the only guardrail
+-- against abuse in this batch; real moderation tooling is a later batch.
+drop policy if exists "Anyone can post a chat message" on public.chat_messages;
+create policy "Anyone can post a chat message"
+  on public.chat_messages for insert
+  to anon, authenticated
+  with check (true);
+
+-- Only the event's host can delete messages in their own event's chat.
+drop policy if exists "Hosts can delete messages in their own event" on public.chat_messages;
+create policy "Hosts can delete messages in their own event"
+  on public.chat_messages for delete
+  to authenticated
+  using (
+    exists (
+      select 1 from public.events
+      where events.id = chat_messages.event_id
+      and events.host_id = auth.uid()
+    )
+  );
+
+create index if not exists chat_messages_event_id_created_at_idx
+  on public.chat_messages (event_id, created_at);
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'chat_messages'
+  ) then
+    alter publication supabase_realtime add table public.chat_messages;
+  end if;
+end $$;
