@@ -41,7 +41,7 @@
         <form id="create-event-form" novalidate>
           <div class="field" id="title-field">
             <label class="field-label" for="event-title">Title</label>
-            <input class="input" type="text" id="event-title" name="title" required placeholder="e.g. Sunday Morning Service" />
+            <input class="input" type="text" id="event-title" name="title" required maxlength="200" placeholder="e.g. Sunday Morning Service" />
             <span class="field-error-text" id="title-error" hidden>Give your event a title.</span>
           </div>
 
@@ -59,7 +59,7 @@
 
           <div class="field" id="description-field">
             <label class="field-label" for="event-description">Description (optional)</label>
-            <input class="input" type="text" id="event-description" name="description" placeholder="A short description viewers will see" />
+            <input class="input" type="text" id="event-description" name="description" maxlength="2000" placeholder="A short description viewers will see" />
           </div>
 
           <button class="btn btn-primary" type="submit">Create event</button>
