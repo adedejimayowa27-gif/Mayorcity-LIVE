@@ -77,3 +77,59 @@
     align-items: stretch;
   }
 }
+
+/* ---- Overlay controls (programme graphic + scoreboard) ---- */
+
+.overlay-panel {
+  margin-bottom: var(--space-5);
+}
+
+.overlay-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.overlay-panel-header h2 {
+  font-size: var(--text-md);
+}
+
+.overlay-score-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.overlay-score-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.overlay-score-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: var(--border-width) solid var(--color-border-strong);
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  font-size: var(--text-md);
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.overlay-score-btn:hover {
+  background: var(--color-surface-hover);
+}
+
+.overlay-score-value {
+  min-width: 1.5em;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 700;
+}
