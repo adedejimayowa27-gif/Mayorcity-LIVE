@@ -5,6 +5,7 @@
 // meant to have two different visual personalities (see project brief).
 
 import { getSession, onAuthStateChange, signOut } from '../services/authService.js';
+import { escapeHtml } from '../utils/dom.js';
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
@@ -23,7 +24,7 @@ function loggedOutActionsHtml() {
 function loggedInActionsHtml(session) {
   const displayName = session.user?.user_metadata?.full_name || session.user?.email || 'Account';
   return `
-    <span class="badge" style="max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${displayName}</span>
+    <span class="badge" style="max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(displayName)}</span>
     <button class="btn btn-secondary" type="button" id="navbar-sign-out">Sign out</button>
   `;
 }
