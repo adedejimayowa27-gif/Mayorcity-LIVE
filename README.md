@@ -214,6 +214,24 @@ football scoreboard overlays, and the dedicated broadcaster control centre
 (this batch's `broadcast.html` is intentionally minimal — Batch 7 replaces
 it with the full control centre).
 
+## What's in Batch 5
+
+- Real live viewer count on both the viewer page and the host's broadcast
+  page, updating as people join/leave
+- A "Connecting…" state while the stream loads, and a "Reconnecting…" state
+  if the connection drops and recovers, instead of a frozen or blank player
+- Player controls: mute/unmute (video starts muted so autoplay works in
+  every browser, with a clear "Tap to unmute" prompt) and fullscreen
+- Broadcast-ended handling: if the host ends the stream while you're
+  watching, the player cleans up and the toast tells you what happened,
+  instead of leaving a stuck video frame
+
+**Not included yet, by design:** recording/playback of past broadcasts,
+picture-in-quality controls, multi-camera/co-host support, real-time chat,
+football scoreboard overlays, and the dedicated broadcaster control centre
+(this batch's `broadcast.html` is intentionally minimal — Batch 7 replaces
+it with the full control centre).
+
 ### To actually use LiveKit
 
 1. Create a project at [livekit.io](https://livekit.io) (or self-host) to get
@@ -233,7 +251,7 @@ it with the full control centre).
 | 2 | Authentication and user system ✅ |
 | 3 | Events and broadcast management ✅ *(this repo)* |
 | 4 | LiveKit live video/audio broadcasting ✅ *(this repo)* |
-| 5 | Premium viewer experience |
+| 5 | Premium viewer experience ✅ *(this repo)* |
 | 6 | Broadcast overlays, programme graphics, football scoreboard |
 | 7 | Broadcaster control centre |
 | 8 | Realtime chat and audience engagement |
