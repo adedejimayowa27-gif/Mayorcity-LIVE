@@ -3,14 +3,19 @@ import { getEventById, updateEvent } from '../services/eventsService.js';
 import { connectAsHost, RoomEvent } from '../services/broadcastService.js';
 import { initToastRegion, showToast } from '../components/toast.js';
 import { createErrorState, createLiveBadge, renderOverlayHtml } from '../components/uiKit.js';
+import { createModal } from '../components/modal.js';
 import { setButtonLoading } from '../utils/dom.js';
 
 initToastRegion();
 
 const shell = document.getElementById('broadcast-shell');
+const endBroadcastModal = createModal(document.getElementById('end-broadcast-modal'));
 
 let room = null;
 let event = null;
+let activeTab = 'overlays';
+let liveTimerInterval = null;
+let liveStartedAt = null;
 
 // Local working copy of the overlay. Kept even when hidden, so toggling
 // visibility off and back on doesn't lose typed-in team names/scores.
@@ -25,6 +30,22 @@ function shareUrl(eventId) {
   return `${window.location.origin}/event.html?id=${eventId}`;
 }
 
+function qualityLabel(quality) {
+  if (quality === 'excellent') return { text: 'Excellent', color: 'var(--color-success)' };
+  if (quality === 'good') return { text: 'Good', color: 'var(--color-warning)' };
+  if (quality === 'poor') return { text: 'Poor', color: 'var(--color-error)' };
+  return { text: 'Checking…', color: 'var(--color-text-faint)' };
+}
+
+function formatDuration(ms) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+}
+
 function renderBroadcastUI() {
   const isLive = event.status === 'live';
   const isFootball = event.category === 'football';
@@ -35,34 +56,108 @@ function renderBroadcastUI() {
       <p>This is your camera preview. Only you can see this until you go live.</p>
     </div>
 
-    <div class="broadcast-monitor">
-      <video id="local-preview" autoplay playsinline muted></video>
-      <div class="broadcast-monitor-placeholder" id="monitor-placeholder">Camera is off</div>
-      <div class="broadcast-monitor-badge" id="monitor-badge">
-        ${isLive ? createLiveBadge() : ''}
+    <div class="broadcast-stats">
+      <div class="broadcast-stat">
+        <span class="broadcast-stat-label">Status</span>
+        <span class="broadcast-stat-value">${isLive ? 'Live' : 'Not live'}</span>
       </div>
-      ${isLive ? '<span class="hero-monitor-viewers" id="host-viewer-count" style="position:absolute;top:var(--space-4);right:var(--space-4);">0 watching</span>' : ''}
-      <div class="monitor-overlay" id="host-monitor-overlay">${renderOverlayHtml(overlayState)}</div>
-    </div>
-
-    <div class="broadcast-controls">
-      <button class="btn btn-secondary" type="button" id="toggle-camera">Start camera</button>
-      <button class="btn btn-secondary" type="button" id="toggle-mic" disabled>Mute mic</button>
-      ${
-        isLive
-          ? `<button class="btn btn-primary" type="button" id="end-broadcast">End broadcast</button>`
-          : `<button class="btn btn-primary" type="button" id="go-live" disabled>Go live</button>`
-      }
-    </div>
-
-    <div class="field">
-      <label class="field-label" for="share-link">Viewer link</label>
-      <div class="broadcast-share">
-        <input class="input" type="text" id="share-link" readonly value="${shareUrl(event.id)}" />
-        <button class="btn btn-secondary" type="button" id="copy-link">Copy</button>
+      <div class="broadcast-stat">
+        <span class="broadcast-stat-label">Watching</span>
+        <span class="broadcast-stat-value" id="stat-viewers">0</span>
+      </div>
+      <div class="broadcast-stat">
+        <span class="broadcast-stat-label">Duration</span>
+        <span class="broadcast-stat-value" id="stat-duration">${isLive ? '00:00' : '—'}</span>
+      </div>
+      <div class="broadcast-stat">
+        <span class="broadcast-stat-label">Connection</span>
+        <span class="broadcast-stat-value" id="stat-quality"><span class="quality-dot" style="background:var(--color-text-faint)"></span>Checking…</span>
       </div>
     </div>
 
+    <div class="control-centre-grid">
+      <div>
+        <div class="broadcast-monitor">
+          <video id="local-preview" autoplay playsinline muted></video>
+          <div class="broadcast-monitor-placeholder" id="monitor-placeholder">Camera is off</div>
+          <div class="broadcast-monitor-badge" id="monitor-badge">
+            ${isLive ? createLiveBadge() : ''}
+          </div>
+          <div class="monitor-overlay" id="host-monitor-overlay">${renderOverlayHtml(overlayState)}</div>
+        </div>
+
+        <div class="broadcast-controls">
+          <button class="btn btn-secondary" type="button" id="toggle-camera">Start camera</button>
+          <button class="btn btn-secondary" type="button" id="toggle-mic" disabled>Mute mic</button>
+          ${
+            isLive
+              ? `<button class="btn btn-primary" type="button" id="end-broadcast">End broadcast</button>`
+              : `<button class="btn btn-primary" type="button" id="go-live" disabled>Go live</button>`
+          }
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="share-link">Viewer link</label>
+          <div class="broadcast-share">
+            <input class="input" type="text" id="share-link" readonly value="${shareUrl(event.id)}" />
+            <button class="btn btn-secondary" type="button" id="copy-link">Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="control-tabs" role="tablist">
+          <button class="control-tab-btn" type="button" role="tab" data-tab="overlays" aria-selected="${activeTab === 'overlays'}">Overlays</button>
+          <button class="control-tab-btn" type="button" role="tab" data-tab="settings" aria-selected="${activeTab === 'settings'}">Settings</button>
+        </div>
+        <div id="tab-panel"></div>
+      </div>
+    </div>
+  `;
+
+  renderTabPanel(isFootball);
+
+  document.getElementById('toggle-camera').addEventListener('click', handleToggleCamera);
+  document.getElementById('toggle-mic').addEventListener('click', handleToggleMic);
+  document.getElementById('copy-link').addEventListener('click', handleCopyLink);
+
+  document.getElementById('go-live')?.addEventListener('click', handleGoLive);
+  document.getElementById('end-broadcast')?.addEventListener('click', () => endBroadcastModal.open());
+
+  shell.querySelectorAll('.control-tab-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      activeTab = btn.dataset.tab;
+      shell.querySelectorAll('.control-tab-btn').forEach((b) => b.setAttribute('aria-selected', String(b === btn)));
+      renderTabPanel(isFootball);
+    });
+  });
+
+  updateHostViewerCount();
+  if (isLive) startLiveTimer();
+}
+
+function renderTabPanel(isFootball) {
+  const panel = document.getElementById('tab-panel');
+  if (!panel) return;
+
+  if (activeTab === 'settings') {
+    panel.innerHTML = `
+      <div class="card">
+        <div class="field device-field">
+          <label class="field-label" for="camera-select">Camera</label>
+          <select class="input" id="camera-select"><option>Loading devices…</option></select>
+        </div>
+        <div class="field device-field" style="margin-bottom: 0;">
+          <label class="field-label" for="mic-select">Microphone</label>
+          <select class="input" id="mic-select"><option>Loading devices…</option></select>
+        </div>
+      </div>
+    `;
+    populateDeviceOptions();
+    return;
+  }
+
+  panel.innerHTML = `
     <div class="card overlay-panel">
       <div class="overlay-panel-header">
         <h2>Programme graphic</h2>
@@ -125,13 +220,6 @@ function renderBroadcastUI() {
     }
   `;
 
-  document.getElementById('toggle-camera').addEventListener('click', handleToggleCamera);
-  document.getElementById('toggle-mic').addEventListener('click', handleToggleMic);
-  document.getElementById('copy-link').addEventListener('click', handleCopyLink);
-
-  document.getElementById('go-live')?.addEventListener('click', handleGoLive);
-  document.getElementById('end-broadcast')?.addEventListener('click', handleEndBroadcast);
-
   wireOverlayControls(isFootball);
 }
 
@@ -153,7 +241,7 @@ function wireOverlayControls(isFootball) {
     overlayState.type = alreadyShowing ? overlayState.type : 'programme';
     overlayState.visible = !alreadyShowing;
     persistOverlay();
-    renderBroadcastUI();
+    renderTabPanel(isFootball);
   });
 
   if (!isFootball) return;
@@ -164,12 +252,12 @@ function wireOverlayControls(isFootball) {
   teamAInput.addEventListener('change', () => {
     overlayState.scoreboard.teamA = teamAInput.value.trim() || 'Team A';
     persistOverlay();
-    renderBroadcastUI();
+    renderTabPanel(isFootball);
   });
   teamBInput.addEventListener('change', () => {
     overlayState.scoreboard.teamB = teamBInput.value.trim() || 'Team B';
     persistOverlay();
-    renderBroadcastUI();
+    renderTabPanel(isFootball);
   });
 
   document.getElementById('toggle-scoreboard').addEventListener('click', () => {
@@ -177,10 +265,10 @@ function wireOverlayControls(isFootball) {
     overlayState.type = alreadyShowing ? overlayState.type : 'scoreboard';
     overlayState.visible = !alreadyShowing;
     persistOverlay();
-    renderBroadcastUI();
+    renderTabPanel(isFootball);
   });
 
-  shell.querySelectorAll('[data-score]').forEach((btn) => {
+  document.querySelectorAll('[data-score]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const team = btn.dataset.score === 'a' ? 'scoreA' : 'scoreB';
       const delta = Number(btn.dataset.delta);
@@ -191,10 +279,38 @@ function wireOverlayControls(isFootball) {
   });
 }
 
-async function persistOverlay() {
-  document.getElementById('host-monitor-overlay').innerHTML = renderOverlayHtml(overlayState);
-  const { error } = await updateEvent(event.id, { overlay: overlayState });
-  if (error) showToast(error, { title: "Couldn't update overlay", variant: 'error' });
+async function populateDeviceOptions() {
+  const cameraSelect = document.getElementById('camera-select');
+  const micSelect = document.getElementById('mic-select');
+
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cameras = devices.filter((d) => d.kind === 'videoinput');
+    const mics = devices.filter((d) => d.kind === 'audioinput');
+
+    cameraSelect.innerHTML = cameras.length
+      ? cameras.map((d, i) => `<option value="${d.deviceId}">${d.label || `Camera ${i + 1}`}</option>`).join('')
+      : '<option>No camera found</option>';
+
+    micSelect.innerHTML = mics.length
+      ? mics.map((d, i) => `<option value="${d.deviceId}">${d.label || `Microphone ${i + 1}`}</option>`).join('')
+      : '<option>No microphone found</option>';
+
+    cameraSelect.addEventListener('change', async () => {
+      if (!room) return;
+      await room.switchActiveDevice('videoinput', cameraSelect.value);
+      showToast('Camera switched.', { variant: 'success' });
+    });
+
+    micSelect.addEventListener('change', async () => {
+      if (!room) return;
+      await room.switchActiveDevice('audioinput', micSelect.value);
+      showToast('Microphone switched.', { variant: 'success' });
+    });
+  } catch {
+    cameraSelect.innerHTML = '<option>Grant camera access to see devices</option>';
+    micSelect.innerHTML = '<option>Grant microphone access to see devices</option>';
+  }
 }
 
 async function handleToggleCamera(e) {
@@ -223,6 +339,7 @@ async function handleToggleCamera(e) {
 
   if (nowOn) {
     await room.localParticipant.setMicrophoneEnabled(true);
+    if (activeTab === 'settings') populateDeviceOptions();
   }
 }
 
@@ -247,17 +364,20 @@ async function handleGoLive(e) {
   showToast('You\u2019re live.', { variant: 'success' });
   renderBroadcastUI();
   reattachVideo();
-  updateHostViewerCount();
 }
 
-async function handleEndBroadcast(e) {
-  setButtonLoading(e.currentTarget, true, 'Ending…');
+async function confirmEndBroadcast() {
+  const btn = document.getElementById('confirm-end-broadcast');
+  setButtonLoading(btn, true, 'Ending…');
+
   const { error } = await updateEvent(event.id, { status: 'ended' });
 
   await room.localParticipant.setCameraEnabled(false);
   await room.disconnect();
+  stopLiveTimer();
 
-  setButtonLoading(e.currentTarget, false);
+  setButtonLoading(btn, false);
+  endBroadcastModal.close();
 
   if (error) {
     showToast(error, { title: "Couldn't end broadcast cleanly", variant: 'error' });
@@ -275,6 +395,12 @@ function handleCopyLink() {
   showToast('Viewer link copied.', { variant: 'success' });
 }
 
+async function persistOverlay() {
+  document.getElementById('host-monitor-overlay').innerHTML = renderOverlayHtml(overlayState);
+  const { error } = await updateEvent(event.id, { overlay: overlayState });
+  if (error) showToast(error, { title: "Couldn't update overlay", variant: 'error' });
+}
+
 function reattachVideo() {
   const videoEl = document.getElementById('local-preview');
   if (!videoEl) return;
@@ -285,12 +411,35 @@ function reattachVideo() {
 }
 
 function updateHostViewerCount() {
-  const el = document.getElementById('host-viewer-count');
+  const el = document.getElementById('stat-viewers');
   if (!el || !room) return;
-  el.textContent = `${room.remoteParticipants.size} watching`;
+  el.textContent = room.remoteParticipants.size;
+}
+
+function updateQualityBadge(quality) {
+  const el = document.getElementById('stat-quality');
+  if (!el) return;
+  const { text, color } = qualityLabel(quality);
+  el.innerHTML = `<span class="quality-dot" style="background:${color}"></span>${text}`;
+}
+
+function startLiveTimer() {
+  if (liveTimerInterval) return;
+  liveStartedAt = liveStartedAt || Date.now();
+  liveTimerInterval = window.setInterval(() => {
+    const el = document.getElementById('stat-duration');
+    if (el) el.textContent = formatDuration(Date.now() - liveStartedAt);
+  }, 1000);
+}
+
+function stopLiveTimer() {
+  if (liveTimerInterval) window.clearInterval(liveTimerInterval);
+  liveTimerInterval = null;
 }
 
 async function init() {
+  document.getElementById('confirm-end-broadcast').addEventListener('click', confirmEndBroadcast);
+
   const session = await requireAuth();
   const eventId = new URLSearchParams(window.location.search).get('id');
 
@@ -343,6 +492,9 @@ async function init() {
   room.on(RoomEvent.LocalTrackPublished, reattachVideo);
   room.on(RoomEvent.ParticipantConnected, updateHostViewerCount);
   room.on(RoomEvent.ParticipantDisconnected, updateHostViewerCount);
+  room.on(RoomEvent.ConnectionQualityChanged, (quality, participant) => {
+    if (participant === room.localParticipant) updateQualityBadge(quality);
+  });
 
   window.addEventListener('beforeunload', () => {
     room?.disconnect();
