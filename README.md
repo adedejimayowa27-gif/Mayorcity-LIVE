@@ -78,7 +78,7 @@ mayorcity-live/
 ├── forgot-password.html        Password reset request page
 ├── reset-password.html         Password reset confirmation (from emailed link)
 ├── dashboard.html              Signed-in: create/manage your events
-├── broadcast.html              Host-only: camera preview + go-live controls
+├── broadcast.html              Host-only: full broadcaster control centre
 ├── netlify.toml                Netlify build config
 ├── vite.config.js              Multi-page build entries
 ├── .env.example                Template for local Supabase/LiveKit env vars
@@ -252,6 +252,28 @@ real-time chat, and the dedicated broadcaster control centre (this batch's
 `broadcast.html` is intentionally minimal — Batch 7 replaces it with the
 full control centre).
 
+## What's in Batch 7
+
+`broadcast.html` is now the real broadcaster control centre, not a single
+narrow column:
+
+- Two-panel layout: video preview + controls on one side, tabbed
+  **Overlays** / **Settings** panels on the other (dashboard's
+  professional/efficient personality, as distinct from the public site's
+  cinematic one — see Public UI vs Dashboard UI in the original brief)
+- A stats bar: live status, viewer count, broadcast duration (starts
+  counting the moment you go live), and a connection-quality indicator
+  (Excellent/Good/Poor, from LiveKit's own quality signal)
+- A **Settings** tab to pick which camera and microphone to broadcast from,
+  and switch either mid-broadcast without disconnecting
+- Ending a broadcast now asks for confirmation in a modal first (using the
+  `modal.js` component from Batch 1) instead of ending immediately on one
+  click
+
+**Not included yet, by design:** recording/playback of past broadcasts,
+picture-quality controls, multi-camera/co-host support, and real-time chat
+(Batch 8).
+
 ## Roadmap
 
 | Batch | Scope |
@@ -261,8 +283,8 @@ full control centre).
 | 3 | Events and broadcast management ✅ |
 | 4 | LiveKit live video/audio broadcasting ✅ |
 | 5 | Premium viewer experience ✅ |
-| 6 | Broadcast overlays, programme graphics, football scoreboard ✅ *(this repo)* |
-| 7 | Broadcaster control centre |
+| 6 | Broadcast overlays, programme graphics, football scoreboard ✅ |
+| 7 | Broadcaster control centre ✅ *(this repo)* |
 | 8 | Realtime chat and audience engagement |
 | 9 | Admin dashboard and analytics |
 | 10 | Security, optimization, testing, production deployment |
