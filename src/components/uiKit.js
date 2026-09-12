@@ -65,3 +65,40 @@ export function createErrorState({ title = 'Something went wrong', body, onRetry
     </div>
   `;
 }
+
+/**
+ * Renders the on-video overlay graphic (programme lower-third or football
+ * scoreboard) from an event's `overlay` JSON field. Used identically by the
+ * host's own preview (broadcast.html) and every viewer (event.html), so
+ * what the host sees is exactly what the audience sees.
+ * @param {{ type?: 'programme' | 'scoreboard', visible?: boolean, programme?: object, scoreboard?: object } | null} overlay
+ */
+export function renderOverlayHtml(overlay) {
+  if (!overlay || !overlay.visible || !overlay.type) return '';
+
+  if (overlay.type === 'programme') {
+    const { heading = '', subheading = '' } = overlay.programme || {};
+    if (!heading && !subheading) return '';
+    return `
+      <div class="overlay-programme">
+        ${heading ? `<div class="overlay-programme-heading">${heading}</div>` : ''}
+        ${subheading ? `<div class="overlay-programme-subheading">${subheading}</div>` : ''}
+      </div>
+    `;
+  }
+
+  if (overlay.type === 'scoreboard') {
+    const { teamA = 'Team A', teamB = 'Team B', scoreA = 0, scoreB = 0 } = overlay.scoreboard || {};
+    return `
+      <div class="overlay-scoreboard">
+        <span class="overlay-scoreboard-team">${teamA}</span>
+        <span class="overlay-scoreboard-score">${scoreA}</span>
+        <span class="overlay-scoreboard-dash">&ndash;</span>
+        <span class="overlay-scoreboard-score">${scoreB}</span>
+        <span class="overlay-scoreboard-team">${teamB}</span>
+      </div>
+    `;
+  }
+
+  return '';
+}
