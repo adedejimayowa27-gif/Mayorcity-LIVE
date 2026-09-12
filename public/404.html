@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Page not found — Mayorcity LIVE</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <style>
+    /* Self-contained on purpose: files in /public are copied as-is by the
+       build, not processed by Vite, so this can't rely on /src/styles/*.css
+       (those paths only exist for pages Vite actually builds). */
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0c0d10;
+      color: #f3f2ee;
+      font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+      text-align: center;
+      padding: 24px;
+    }
+    .wrap { max-width: 420px; }
+    .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #ff4433; margin-right: 8px; }
+    h1 { font-size: 1.75rem; margin: 24px 0 8px; }
+    p { color: #9a9da8; margin: 0 0 24px; }
+    a.btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 48px; padding: 0 24px; border-radius: 8px;
+      background: #ff4433; color: #14090a; font-weight: 600; text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <span class="dot" aria-hidden="true"></span><strong>Mayorcity LIVE</strong>
+    <h1>Page not found</h1>
+    <p>The page you're looking for doesn't exist or may have moved.</p>
+    <a class="btn" href="/">Back to home</a>
+  </div>
+</body>
+</html>
