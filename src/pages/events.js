@@ -3,6 +3,7 @@ import { initFooter } from '../components/footer.js';
 import { initToastRegion } from '../components/toast.js';
 import { getPublicEvents, EVENT_CATEGORIES } from '../services/eventsService.js';
 import { createLoadingState, createEmptyState, createErrorState, createLiveBadge } from '../components/uiKit.js';
+import { escapeHtml } from '../utils/dom.js';
 
 initNavbar();
 initFooter();
@@ -30,8 +31,8 @@ function eventCardHtml(event) {
     <a class="event-list-card" href="/event.html?id=${event.id}">
       <article class="card card-hover">
         ${badge}
-        <h3 class="card-title" style="margin-top: var(--space-4);">${event.title}</h3>
-        <p class="card-body">${event.description ? event.description : categoryLabel(event.category)}</p>
+        <h3 class="card-title" style="margin-top: var(--space-4);">${escapeHtml(event.title)}</h3>
+        <p class="card-body">${event.description ? escapeHtml(event.description) : categoryLabel(event.category)}</p>
         <p class="dash-event-meta" style="margin-top: var(--space-3);">${formatScheduledFor(event.scheduled_for)}</p>
       </article>
     </a>
