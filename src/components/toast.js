@@ -24,12 +24,22 @@ export function showToast(message, options = {}) {
   const toast = document.createElement('div');
   toast.className = 'toast';
   toast.dataset.variant = variant;
-  toast.innerHTML = `
-    <div>
-      ${title ? `<div class="toast-title">${title}</div>` : ''}
-      <div class="toast-message">${message}</div>
-    </div>
-  `;
+
+  // Built with real DOM nodes (not innerHTML) so a message built from
+  // user-supplied text (an event title, a name) can never be interpreted
+  // as HTML/script — same reasoning as escapeHtml() in utils/dom.js.
+  const inner = document.createElement('div');
+  if (title) {
+    const titleEl = document.createElement('div');
+    titleEl.className = 'toast-title';
+    titleEl.textContent = title;
+    inner.appendChild(titleEl);
+  }
+  const messageEl = document.createElement('div');
+  messageEl.className = 'toast-message';
+  messageEl.textContent = message;
+  inner.appendChild(messageEl);
+  toast.appendChild(inner);
 
   region.appendChild(toast);
 
