@@ -14,26 +14,7 @@
   <link rel="stylesheet" href="/src/styles/tokens.css" />
   <link rel="stylesheet" href="/src/styles/base.css" />
   <link rel="stylesheet" href="/src/styles/components.css" />
-  <style>
-    /* Minimal dashboard shell for this batch only. A full dashboard layout
-       (sidebar, nested nav, etc.) belongs to whichever later batch first
-       needs it — kept out of dashboard.css until there's real content. */
-    .dash-topbar {
-      border-bottom: 1px solid var(--color-border);
-    }
-    .dash-topbar-inner {
-      height: 72px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .dash-main {
-      min-height: calc(100vh - 72px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-  </style>
+  <link rel="stylesheet" href="/src/styles/dashboard.css" />
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -48,9 +29,47 @@
     </div>
   </header>
 
-  <main class="dash-main" id="main-content">
-    <div class="container" id="dash-content" style="max-width: 480px;">
-      <!-- Populated by dashboard.js once the session is confirmed -->
+  <main id="main-content">
+    <div class="dash-shell">
+      <div class="dash-welcome" id="dash-welcome">
+        <!-- Populated by dashboard.js once the session is confirmed -->
+      </div>
+
+      <section class="card dash-create-card" aria-labelledby="create-event-heading">
+        <h2 class="dash-section-title" id="create-event-heading">Create an event</h2>
+
+        <form id="create-event-form" novalidate>
+          <div class="field" id="title-field">
+            <label class="field-label" for="event-title">Title</label>
+            <input class="input" type="text" id="event-title" name="title" required placeholder="e.g. Sunday Morning Service" />
+            <span class="field-error-text" id="title-error" hidden>Give your event a title.</span>
+          </div>
+
+          <div class="dash-form-row">
+            <div class="field" id="category-field">
+              <label class="field-label" for="event-category">Category</label>
+              <select class="input" id="event-category" name="category"></select>
+            </div>
+
+            <div class="field" id="scheduled-field">
+              <label class="field-label" for="event-scheduled">Date &amp; time (optional)</label>
+              <input class="input" type="datetime-local" id="event-scheduled" name="scheduledFor" />
+            </div>
+          </div>
+
+          <div class="field" id="description-field">
+            <label class="field-label" for="event-description">Description (optional)</label>
+            <input class="input" type="text" id="event-description" name="description" placeholder="A short description viewers will see" />
+          </div>
+
+          <button class="btn btn-primary" type="submit">Create event</button>
+        </form>
+      </section>
+
+      <section aria-labelledby="my-events-heading">
+        <h2 class="dash-section-title" id="my-events-heading">Your events</h2>
+        <div id="events-list"></div>
+      </section>
     </div>
   </main>
 
