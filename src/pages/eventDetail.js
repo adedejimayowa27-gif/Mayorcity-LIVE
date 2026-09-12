@@ -3,7 +3,7 @@ import { initFooter } from '../components/footer.js';
 import { initToastRegion, showToast } from '../components/toast.js';
 import { getEventById, EVENT_CATEGORIES, subscribeToEvent } from '../services/eventsService.js';
 import { connectAsViewer, RoomEvent } from '../services/broadcastService.js';
-import { createLoadingState, createErrorState, createLiveBadge } from '../components/uiKit.js';
+import { createLoadingState, createErrorState, createLiveBadge, renderOverlayHtml } from '../components/uiKit.js';
 
 initNavbar();
 initFooter();
@@ -13,6 +13,7 @@ const content = document.getElementById('event-detail-content');
 
 let unsubscribeRealtime = null;
 let viewerRoom = null;
+let currentStatus = null;
 
 function categoryLabel(value) {
   return EVENT_CATEGORIES.find((c) => c.value === value)?.label || value;
@@ -29,7 +30,13 @@ function monitorNote(status) {
   return 'Video will appear here once this broadcast goes live.';
 }
 
+// Full rebuild of the monitor + video element. Only called on the initial
+// load and when status actually changes (scheduled -> live -> ended) —
+// NOT on every overlay update, which would otherwise tear down the live
+// video track each time a host adjusts a scoreboard.
 function renderEvent(event) {
+  currentStatus = event.status;
+
   document.title = `${event.title} — Mayorcity LIVE`;
   document.getElementById('meta-description').setAttribute(
     'content',
@@ -53,6 +60,8 @@ function renderEvent(event) {
         <p>${categoryLabel(event.category)}</p>
       </div>
 
+      <div class="monitor-overlay" id="monitor-overlay">${renderOverlayHtml(event.overlay)}</div>
+
       <div id="player-connecting" hidden></div>
       <div id="player-controls-region"></div>
     </div>
@@ -75,6 +84,13 @@ function renderEvent(event) {
   } else {
     disconnectViewer();
   }
+}
+
+// Lightweight update used for anything that isn't a status change —
+// currently just the overlay — so the video element is never recreated.
+function updateOverlayOnly(overlay) {
+  const el = document.getElementById('monitor-overlay');
+  if (el) el.innerHTML = renderOverlayHtml(overlay);
 }
 
 function showConnecting(message) {
@@ -217,16 +233,20 @@ async function loadEvent() {
 
   renderEvent(data);
 
-  // Keeps this page in sync the moment the host goes live or ends the
-  // broadcast, with no manual refresh needed.
+  // Keeps this page in sync the moment the host goes live, ends the
+  // broadcast, or updates an overlay — with no manual refresh needed.
   unsubscribeRealtime = subscribeToEvent(id, (updatedEvent) => {
-    const wasLive = document.getElementById('viewer-video')?.style.display === 'block';
-    renderEvent(updatedEvent);
-    if (updatedEvent.status === 'live' && !wasLive) {
-      showToast(`${updatedEvent.title} just went live.`, { variant: 'success' });
-    }
-    if (updatedEvent.status === 'ended' && wasLive) {
-      showToast('The host ended this broadcast.', { variant: 'default' });
+    if (updatedEvent.status !== currentStatus) {
+      const wasLive = currentStatus === 'live';
+      renderEvent(updatedEvent);
+      if (updatedEvent.status === 'live' && !wasLive) {
+        showToast(`${updatedEvent.title} just went live.`, { variant: 'success' });
+      }
+      if (updatedEvent.status === 'ended' && wasLive) {
+        showToast('The host ended this broadcast.', { variant: 'default' });
+      }
+    } else {
+      updateOverlayOnly(updatedEvent.overlay);
     }
   });
 }
