@@ -6,7 +6,35 @@
 [build.environment]
   NODE_VERSION = "20"
 
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 404
+# No redirect rule needed for 404s: Netlify automatically serves
+# public/404.html for any path that doesn't match a real file. This is
+# more correct than redirecting to index.html, since this app is several
+# real pages, not a single-page app with client-side routing.
+
+# Security headers applied to every response. Adjust connect-src below if
+# you self-host LiveKit somewhere other than *.livekit.cloud.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(self), microphone=(self), geolocation=()"
+    Content-Security-Policy = """
+      default-src 'self';
+      script-src 'self';
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      font-src 'self' https://fonts.gstatic.com;
+      img-src 'self' data:;
+      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.livekit.cloud wss://*.livekit.cloud;
+      media-src 'self' blob:;
+      frame-ancestors 'none';
+    """
+
+# Vite fingerprints these filenames with a content hash, so they can be
+# cached aggressively — a new deploy produces new filenames, never a stale
+# cache hit.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
