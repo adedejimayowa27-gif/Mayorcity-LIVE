@@ -36,6 +36,22 @@
     </div>
   </main>
 
+  <div class="modal-overlay" id="end-broadcast-modal" data-open="false">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="end-broadcast-modal-title">
+      <div class="modal-header">
+        <h2 id="end-broadcast-modal-title" style="font-size: var(--text-md);">End this broadcast?</h2>
+        <button class="modal-close" type="button" data-modal-close aria-label="Close">&times;</button>
+      </div>
+      <p style="font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: var(--space-6);">
+        Your viewers will be disconnected immediately. This can't be undone.
+      </p>
+      <div style="display: flex; gap: var(--space-3);">
+        <button class="btn btn-secondary btn-block" type="button" data-modal-close>Keep broadcasting</button>
+        <button class="btn btn-primary btn-block" type="button" id="confirm-end-broadcast">End broadcast</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="/src/pages/broadcastPage.js"></script>
 </body>
 </html>
