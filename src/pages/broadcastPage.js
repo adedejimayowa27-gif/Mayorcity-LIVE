@@ -4,7 +4,8 @@ import { connectAsHost, RoomEvent } from '../services/broadcastService.js';
 import { initToastRegion, showToast } from '../components/toast.js';
 import { createErrorState, createLiveBadge, renderOverlayHtml } from '../components/uiKit.js';
 import { createModal } from '../components/modal.js';
-import { setButtonLoading } from '../utils/dom.js';
+import { initChatPanel } from '../components/chatPanel.js';
+import { setButtonLoading, escapeHtml } from '../utils/dom.js';
 
 initToastRegion();
 
@@ -13,6 +14,8 @@ const endBroadcastModal = createModal(document.getElementById('end-broadcast-mod
 
 let room = null;
 let event = null;
+let hostSession = null;
+let chatPanelInstance = null;
 let activeTab = 'overlays';
 let liveTimerInterval = null;
 let liveStartedAt = null;
@@ -52,7 +55,7 @@ function renderBroadcastUI() {
 
   shell.innerHTML = `
     <div class="broadcast-header">
-      <h1>${event.title}</h1>
+      <h1>${escapeHtml(event.title)}</h1>
       <p>This is your camera preview. Only you can see this until you go live.</p>
     </div>
 
@@ -108,6 +111,7 @@ function renderBroadcastUI() {
       <div>
         <div class="control-tabs" role="tablist">
           <button class="control-tab-btn" type="button" role="tab" data-tab="overlays" aria-selected="${activeTab === 'overlays'}">Overlays</button>
+          <button class="control-tab-btn" type="button" role="tab" data-tab="chat" aria-selected="${activeTab === 'chat'}">Chat</button>
           <button class="control-tab-btn" type="button" role="tab" data-tab="settings" aria-selected="${activeTab === 'settings'}">Settings</button>
         </div>
         <div id="tab-panel"></div>
@@ -140,6 +144,22 @@ function renderTabPanel(isFootball) {
   const panel = document.getElementById('tab-panel');
   if (!panel) return;
 
+  // Any previous chat subscription is no longer attached to a live DOM
+  // node once we rewrite the panel below — tear it down first.
+  chatPanelInstance?.destroy();
+  chatPanelInstance = null;
+
+  if (activeTab === 'chat') {
+    panel.innerHTML = `<div id="host-chat-mount"></div>`;
+    chatPanelInstance = initChatPanel({
+      mountEl: document.getElementById('host-chat-mount'),
+      eventId: event.id,
+      session: hostSession,
+      isHost: true
+    });
+    return;
+  }
+
   if (activeTab === 'settings') {
     panel.innerHTML = `
       <div class="card">
@@ -167,11 +187,11 @@ function renderTabPanel(isFootball) {
       </div>
       <div class="field">
         <label class="field-label" for="programme-heading">Heading</label>
-        <input class="input" type="text" id="programme-heading" placeholder="e.g. Beyond the Classroom" value="${overlayState.programme.heading}" />
+        <input class="input" type="text" id="programme-heading" placeholder="e.g. Beyond the Classroom" value="${escapeHtml(overlayState.programme.heading)}" />
       </div>
       <div class="field" style="margin-bottom: 0;">
         <label class="field-label" for="programme-subheading">Subheading</label>
-        <input class="input" type="text" id="programme-subheading" placeholder="e.g. Riverside Secondary School" value="${overlayState.programme.subheading}" />
+        <input class="input" type="text" id="programme-subheading" placeholder="e.g. Riverside Secondary School" value="${escapeHtml(overlayState.programme.subheading)}" />
       </div>
     </div>
 
@@ -189,16 +209,16 @@ function renderTabPanel(isFootball) {
       <div class="dash-form-row" style="margin-bottom: var(--space-4);">
         <div class="field" style="margin-bottom: 0;">
           <label class="field-label" for="team-a-name">Team A</label>
-          <input class="input" type="text" id="team-a-name" value="${overlayState.scoreboard.teamA}" />
+          <input class="input" type="text" id="team-a-name" value="${escapeHtml(overlayState.scoreboard.teamA)}" />
         </div>
         <div class="field" style="margin-bottom: 0;">
           <label class="field-label" for="team-b-name">Team B</label>
-          <input class="input" type="text" id="team-b-name" value="${overlayState.scoreboard.teamB}" />
+          <input class="input" type="text" id="team-b-name" value="${escapeHtml(overlayState.scoreboard.teamB)}" />
         </div>
       </div>
 
       <div class="overlay-score-row">
-        <span class="field-label">${overlayState.scoreboard.teamA} score</span>
+        <span class="field-label">${escapeHtml(overlayState.scoreboard.teamA)} score</span>
         <div class="overlay-score-controls">
           <button class="overlay-score-btn" type="button" data-score="a" data-delta="-1" aria-label="Decrease Team A score">&minus;</button>
           <span class="overlay-score-value" id="score-a-value">${overlayState.scoreboard.scoreA}</span>
@@ -207,7 +227,7 @@ function renderTabPanel(isFootball) {
       </div>
 
       <div class="overlay-score-row" style="margin-bottom: 0;">
-        <span class="field-label">${overlayState.scoreboard.teamB} score</span>
+        <span class="field-label">${escapeHtml(overlayState.scoreboard.teamB)} score</span>
         <div class="overlay-score-controls">
           <button class="overlay-score-btn" type="button" data-score="b" data-delta="-1" aria-label="Decrease Team B score">&minus;</button>
           <span class="overlay-score-value" id="score-b-value">${overlayState.scoreboard.scoreB}</span>
@@ -413,7 +433,13 @@ function reattachVideo() {
 function updateHostViewerCount() {
   const el = document.getElementById('stat-viewers');
   if (!el || !room) return;
-  el.textContent = room.remoteParticipants.size;
+  const count = room.remoteParticipants.size;
+  el.textContent = count;
+
+  if (event && count > (event.peak_viewers || 0)) {
+    event.peak_viewers = count;
+    updateEvent(event.id, { peakViewers: count });
+  }
 }
 
 function updateQualityBadge(quality) {
@@ -441,6 +467,7 @@ async function init() {
   document.getElementById('confirm-end-broadcast').addEventListener('click', confirmEndBroadcast);
 
   const session = await requireAuth();
+  hostSession = session;
   const eventId = new URLSearchParams(window.location.search).get('id');
 
   if (!eventId) {
