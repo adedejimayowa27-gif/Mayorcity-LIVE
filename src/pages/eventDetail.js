@@ -2,8 +2,11 @@ import { initNavbar } from '../components/navbar.js';
 import { initFooter } from '../components/footer.js';
 import { initToastRegion, showToast } from '../components/toast.js';
 import { getEventById, EVENT_CATEGORIES, subscribeToEvent } from '../services/eventsService.js';
+import { getSession } from '../services/authService.js';
 import { connectAsViewer, RoomEvent } from '../services/broadcastService.js';
 import { createLoadingState, createErrorState, createLiveBadge, renderOverlayHtml } from '../components/uiKit.js';
+import { initChatPanel } from '../components/chatPanel.js';
+import { escapeHtml } from '../utils/dom.js';
 
 initNavbar();
 initFooter();
@@ -56,7 +59,7 @@ function renderEvent(event) {
       </div>
 
       <div class="hero-monitor-caption" id="monitor-caption">
-        <h3>${event.title}</h3>
+        <h3>${escapeHtml(event.title)}</h3>
         <p>${categoryLabel(event.category)}</p>
       </div>
 
@@ -69,14 +72,14 @@ function renderEvent(event) {
 
     <div class="event-detail-header">
       ${badge}
-      <h1>${event.title}</h1>
+      <h1>${escapeHtml(event.title)}</h1>
       <div class="event-detail-meta">
         <span>${categoryLabel(event.category)}</span>
         <span>${formatScheduledFor(event.scheduled_for)}</span>
       </div>
     </div>
 
-    ${event.description ? `<p class="event-detail-description">${event.description}</p>` : ''}
+    ${event.description ? `<p class="event-detail-description">${escapeHtml(event.description)}</p>` : ''}
   `;
 
   if (event.status === 'live') {
@@ -232,6 +235,14 @@ async function loadEvent() {
   }
 
   renderEvent(data);
+
+  const { session } = await getSession();
+  initChatPanel({
+    mountEl: document.getElementById('chat-mount'),
+    eventId: id,
+    session: session || null,
+    isHost: false
+  });
 
   // Keeps this page in sync the moment the host goes live, ends the
   // broadcast, or updates an overlay — with no manual refresh needed.
