@@ -1,0 +1,118 @@
+/* Dashboard shell + events management layout — also supplies the
+   .dash-topbar used by admin.html and broadcast.html, which both link
+   this file before their own page-specific stylesheet. */
+
+/* ==========================================================================
+   Top bar (shared by dashboard, admin, broadcast)
+   ========================================================================== */
+
+.dash-topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-nav);
+  background: rgba(12, 13, 16, 0.85);
+  backdrop-filter: blur(10px);
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.dash-topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  height: 72px;
+}
+
+#dash-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* ==========================================================================
+   Dashboard shell
+   ========================================================================== */
+
+.dash-shell {
+  max-width: 720px;
+  margin-inline: auto;
+  padding: var(--space-6) var(--space-5) var(--space-10);
+}
+
+@media (min-width: 768px) {
+  .dash-shell {
+    padding: var(--space-8) var(--space-8) var(--space-10);
+  }
+}
+
+.dash-welcome {
+  margin-bottom: var(--space-8);
+}
+
+.dash-welcome h1 {
+  font-size: var(--text-lg);
+  margin-bottom: var(--space-2);
+}
+
+.dash-welcome p {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.dash-section-title {
+  font-size: var(--text-md);
+  margin-bottom: var(--space-4);
+}
+
+.dash-create-card {
+  margin-bottom: var(--space-9);
+}
+
+.dash-form-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0 var(--space-4);
+}
+
+@media (min-width: 560px) {
+  .dash-form-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ==========================================================================
+   Events list
+   ========================================================================== */
+
+.dash-events-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dash-event-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .dash-event-card {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.dash-event-meta {
+  font-size: var(--text-xs);
+  color: var(--color-text-faint);
+  margin-top: var(--space-2);
+}
+
+.dash-event-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
