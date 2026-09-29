@@ -779,3 +779,65 @@
 .hero-monitor.is-pseudo-fullscreen .overlay-presenter-raised {
   bottom: calc(var(--space-6) + 130px);
 }
+
+/* ---- Goal alert ---- */
+
+.overlay-goal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  padding: var(--space-4) var(--space-7, 2.5rem);
+  background: rgba(10, 11, 13, 0.85);
+  border: 2px solid var(--color-signal);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  animation: goal-flash 6s ease-out forwards;
+}
+
+.overlay-goal-title {
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--color-signal);
+  line-height: 1.1;
+}
+
+.overlay-goal-team {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--color-text);
+  margin-top: var(--space-1);
+}
+
+.overlay-goal-score {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
+
+@keyframes goal-flash {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  8% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+  14% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  85% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes goal-flash {
+    0% { opacity: 0; }
+    8%, 85% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+}
+
+.hero-monitor:fullscreen .overlay-goal,
+.hero-monitor:-webkit-full-screen .overlay-goal,
+.hero-monitor.is-pseudo-fullscreen .overlay-goal {
+  zoom: 1.5;
+}
