@@ -43,6 +43,15 @@ let overlayState = {
   }
 };
 
+// Older events saved before the presenter overlay existed have none — add one.
+function ensurePresenter() {
+  if (!overlayState.presenter) {
+    overlayState.presenter = { visible: false, name: '', role: '', mode: 'speaking', roster: [] };
+  }
+  if (!Array.isArray(overlayState.presenter.roster)) overlayState.presenter.roster = [];
+  return overlayState.presenter;
+}
+
 // Older events saved before the clock existed have no clock — add one.
 function ensureClock() {
   if (!overlayState.scoreboard.clock) {
@@ -164,6 +173,7 @@ function renderBroadcastUI() {
 
 function renderTabPanel(isFootball) {
   const clockState = ensureClock();
+  const presenterState = ensurePresenter();
   const CLOCK_PANEL = `
       <div class="clock-panel">
         <h3>Match clock</h3>
@@ -248,6 +258,48 @@ function renderTabPanel(isFootball) {
       </div>
     </div>
 
+
+    <div class="card overlay-panel">
+      <div class="overlay-panel-header">
+        <h2>Presenter / Speaking now</h2>
+        <button class="btn btn-secondary" type="button" id="toggle-presenter">
+          ${presenterState.visible ? 'Hide' : 'Show'}
+        </button>
+      </div>
+
+      <div class="presenter-mode-row">
+        <button class="btn btn-secondary" type="button" data-presenter-mode="speaking" aria-pressed="${presenterState.mode !== 'presenter'}">Speaking now</button>
+        <button class="btn btn-secondary" type="button" data-presenter-mode="presenter" aria-pressed="${presenterState.mode === 'presenter'}">Presenter</button>
+      </div>
+
+      <div class="dash-form-row" style="margin-bottom: var(--space-3);">
+        <div class="field" style="margin-bottom: 0;">
+          <label class="field-label" for="presenter-name">Name</label>
+          <input class="input" type="text" id="presenter-name" maxlength="60" placeholder="e.g. Ada Okafor" value="${escapeHtml(presenterState.name)}" />
+        </div>
+        <div class="field" style="margin-bottom: 0;">
+          <label class="field-label" for="presenter-role">Role (optional)</label>
+          <input class="input" type="text" id="presenter-role" maxlength="80" placeholder="e.g. Head Teacher" value="${escapeHtml(presenterState.role)}" />
+        </div>
+      </div>
+
+      <button class="btn btn-secondary" type="button" id="presenter-save">Save to speaker list</button>
+
+      ${
+        presenterState.roster.length
+          ? `<div class="presenter-roster">${presenterState.roster
+              .map(
+                (person, i) => `
+            <span class="presenter-chip" data-active="${presenterState.visible && person.name === presenterState.name}">
+              <button type="button" data-roster-pick="${i}" title="${escapeHtml(person.role || '')}">${escapeHtml(person.name)}</button>
+              <button type="button" data-roster-remove="${i}" aria-label="Remove ${escapeHtml(person.name)}">&times;</button>
+            </span>`
+              )
+              .join('')}</div>`
+          : ''
+      }
+    </div>
+
     ${
       isFootball
         ? `
@@ -298,6 +350,8 @@ function renderTabPanel(isFootball) {
 }
 
 function wireOverlayControls(isFootball) {
+  wirePresenterControls(isFootball);
+
   const headingInput = document.getElementById('programme-heading');
   const subheadingInput = document.getElementById('programme-subheading');
 
@@ -353,6 +407,81 @@ function wireOverlayControls(isFootball) {
   });
 
   wireClockControls(isFootball);
+}
+
+function wirePresenterControls(isFootball) {
+  const presenter = ensurePresenter();
+  const nameInput = document.getElementById('presenter-name');
+  const roleInput = document.getElementById('presenter-role');
+
+  const readInputs = () => {
+    presenter.name = nameInput.value.trim();
+    presenter.role = roleInput.value.trim();
+  };
+  const commit = () => {
+    persistOverlay();
+    renderTabPanel(isFootball);
+  };
+
+  // Editing the name/role while it is on screen updates it live.
+  [nameInput, roleInput].forEach((input) =>
+    input.addEventListener('change', () => {
+      readInputs();
+      if (presenter.visible) commit();
+    })
+  );
+
+  document.getElementById('toggle-presenter').addEventListener('click', () => {
+    readInputs();
+    if (!presenter.visible && !presenter.name) {
+      showToast('Enter a name first.', { variant: 'error' });
+      nameInput.focus();
+      return;
+    }
+    presenter.visible = !presenter.visible;
+    commit();
+  });
+
+  document.querySelectorAll('[data-presenter-mode]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      readInputs();
+      presenter.mode = btn.dataset.presenterMode;
+      commit();
+    });
+  });
+
+  document.getElementById('presenter-save').addEventListener('click', () => {
+    readInputs();
+    if (!presenter.name) return;
+    const existing = presenter.roster.findIndex((p) => p.name.toLowerCase() === presenter.name.toLowerCase());
+    if (existing >= 0) {
+      presenter.roster[existing] = { name: presenter.name, role: presenter.role };
+    } else if (presenter.roster.length >= 8) {
+      showToast('The speaker list holds up to 8 people. Remove one first.', { variant: 'error' });
+      return;
+    } else {
+      presenter.roster.push({ name: presenter.name, role: presenter.role });
+    }
+    commit();
+  });
+
+  document.querySelectorAll('[data-roster-pick]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const person = presenter.roster[Number(btn.dataset.rosterPick)];
+      if (!person) return;
+      presenter.name = person.name;
+      presenter.role = person.role || '';
+      presenter.visible = true;
+      commit();
+    });
+  });
+
+  document.querySelectorAll('[data-roster-remove]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      presenter.roster.splice(Number(btn.dataset.rosterRemove), 1);
+      commit();
+    });
+  });
 }
 
 function wireClockControls() {
