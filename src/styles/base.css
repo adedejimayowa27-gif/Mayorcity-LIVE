@@ -137,3 +137,10 @@ select:focus-visible,
   white-space: nowrap;
   border: 0;
 }
+
+/* The [hidden] attribute must always win. Without this, any class that sets
+   `display: flex` (e.g. .player-connecting) overrides the browser's default
+   `[hidden] { display: none }` and the element stays visible. */
+[hidden] {
+  display: none !important;
+}
