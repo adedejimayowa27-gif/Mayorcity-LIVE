@@ -4,7 +4,7 @@
   functions = "netlify/functions"
 
 [build.environment]
-  NODE_VERSION = "20"
+   NODE_VERSION = "22"
 
 # No redirect rule needed for 404s: Netlify automatically serves
 # public/404.html for any path that doesn't match a real file. This is
