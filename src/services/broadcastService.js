@@ -8,10 +8,35 @@
 // frontend — only the room URL (public, not a secret) and a short-lived
 // token fetched from the Netlify function are used client-side.
 
-import { Room, RoomEvent } from 'livekit-client';
+import { Room, RoomEvent, VideoPresets } from 'livekit-client';
 import { supabase } from '../lib/supabaseClient.js';
 
 const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL;
+
+// Tuned for phones on mobile data: capture at 540p/24fps (less CPU heat and
+// upload needed than 720p/30), cap the top bitrate, and publish simulcast
+// layers so each viewer automatically gets the quality their connection
+// can sustain instead of buffering/lagging on the single big stream.
+function createRoom() {
+  return new Room({
+    adaptiveStream: true, // viewers only download what their screen needs
+    dynacast: true, // host stops encoding layers nobody is watching
+    videoCaptureDefaults: {
+      resolution: { width: 960, height: 540, frameRate: 24 }
+    },
+    audioCaptureDefaults: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true
+    },
+    publishDefaults: {
+      simulcast: true,
+      videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360],
+      videoEncoding: { maxBitrate: 900_000, maxFramerate: 24 },
+      degradationPreference: 'maintain-framerate'
+    }
+  });
+}
 
 /**
  * Requests a short-lived LiveKit token from the Netlify function.
@@ -45,7 +70,7 @@ export async function connectAsHost(roomName) {
   if (!LIVEKIT_URL) throw new Error('LiveKit is not configured (VITE_LIVEKIT_URL is missing).');
 
   const token = await getBroadcastToken({ roomName, role: 'host' });
-  const room = new Room();
+  const room = createRoom();
   await room.connect(LIVEKIT_URL, token);
   return room;
 }
@@ -59,7 +84,7 @@ export async function connectAsViewer(roomName) {
   if (!LIVEKIT_URL) throw new Error('LiveKit is not configured (VITE_LIVEKIT_URL is missing).');
 
   const token = await getBroadcastToken({ roomName, role: 'viewer' });
-  const room = new Room();
+  const room = createRoom();
   await room.connect(LIVEKIT_URL, token);
   return room;
 }
