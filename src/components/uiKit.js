@@ -4,6 +4,7 @@
 // visual language stays consistent as features are added.
 
 import { escapeHtml } from '../utils/dom.js';
+import { serverNow } from '../utils/serverTime.js';
 
 export function createLiveBadge(label = 'Live') {
   return `
@@ -82,7 +83,7 @@ export function createErrorState({ title = 'Something went wrong', body, onRetry
    Nothing ticks in the database — every screen works out the current time
    itself from baseSeconds + (now - startedAt), so host and viewers agree. */
 
-export function getClockElapsedSeconds(clock, now = Date.now()) {
+export function getClockElapsedSeconds(clock, now = serverNow()) {
   if (!clock) return 0;
   const base = Number(clock.baseSeconds) || 0;
   if (!clock.running || !clock.startedAt) return Math.max(0, base);
@@ -90,7 +91,7 @@ export function getClockElapsedSeconds(clock, now = Date.now()) {
 }
 
 /** "12:05", "45+2'" for stoppage time, or "HT" / "FT". */
-export function formatMatchClock(clock, now = Date.now()) {
+export function formatMatchClock(clock, now = serverNow()) {
   if (!clock || clock.period === 'PRE') return '';
   if (clock.period === 'HT') return 'HT';
   if (clock.period === 'FT') return 'FT';
@@ -131,6 +132,35 @@ if (typeof window !== 'undefined' && !window.__mayorcityClockTicker) {
   window.__mayorcityClockTicker = window.setInterval(tickClocks, 500);
 }
 
+/* ---- Goal alert ---------------------------------------------------------
+   The host stamps overlay.scoreboard.goal = { id, team, name, at } whenever a
+   score goes up. Every screen shows the banner once, for about 6 seconds, and
+   ignores goals that are already old (e.g. a viewer joining late). */
+
+const goalSeen = new Map();
+const GOAL_SHOWN_MS = 6000;
+
+function renderGoalBanner(scoreboard) {
+  const goal = scoreboard?.goal;
+  if (!goal || !goal.id) return '';
+
+  const age = serverNow() - goal.at;
+  if (age > 8000 || age < -3000) return '';
+
+  if (!goalSeen.has(goal.id)) goalSeen.set(goal.id, Date.now());
+  const shown = Date.now() - goalSeen.get(goal.id);
+  if (shown > GOAL_SHOWN_MS) return '';
+
+  const { teamA = 'Team A', teamB = 'Team B', scoreA = 0, scoreB = 0 } = scoreboard;
+  return `
+    <div class="overlay-goal" role="status" style="animation-delay: -${shown}ms">
+      <div class="overlay-goal-title">GOAL!</div>
+      <div class="overlay-goal-team">${escapeHtml(goal.name || '')}</div>
+      <div class="overlay-goal-score">${escapeHtml(teamA)} ${scoreA} &ndash; ${scoreB} ${escapeHtml(teamB)}</div>
+    </div>
+  `;
+}
+
 function renderMainOverlayHtml(overlay) {
   if (!overlay || !overlay.visible || !overlay.type) return '';
 
@@ -160,6 +190,7 @@ function renderMainOverlayHtml(overlay) {
         <span class="overlay-scoreboard-team">${escapeHtml(teamB)}</span>
         ${clockHtml}
       </div>
+      ${renderGoalBanner(overlay.scoreboard)}
     `;
   }
 
