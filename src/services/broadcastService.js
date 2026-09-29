@@ -13,16 +13,18 @@ import { supabase } from '../lib/supabaseClient.js';
 
 const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL;
 
-// Tuned for phones on mobile data: capture at 540p/24fps (less CPU heat and
-// upload needed than 720p/30), cap the top bitrate, and publish simulcast
-// layers so each viewer automatically gets the quality their connection
-// can sustain instead of buffering/lagging on the single big stream.
+// Tuned for a sharp picture of a person talking to camera: capture at 720p/30,
+// allow up to ~1.8 Mbps for the top layer, and publish 360p + 540p simulcast
+// layers below it so viewers on weak connections step down gently (540p)
+// instead of dropping straight to a blurry 360p/180p.
+// 'maintain-resolution' makes the browser drop frame rate, not sharpness,
+// when the host's upload is weak.
 function createRoom() {
   return new Room({
     adaptiveStream: true, // viewers only download what their screen needs
     dynacast: true, // host stops encoding layers nobody is watching
     videoCaptureDefaults: {
-      resolution: { width: 960, height: 540, frameRate: 24 }
+      resolution: { width: 1280, height: 720, frameRate: 30 }
     },
     audioCaptureDefaults: {
       echoCancellation: true,
@@ -31,9 +33,9 @@ function createRoom() {
     },
     publishDefaults: {
       simulcast: true,
-      videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360],
-      videoEncoding: { maxBitrate: 900_000, maxFramerate: 24 },
-      degradationPreference: 'maintain-framerate'
+      videoSimulcastLayers: [VideoPresets.h360, VideoPresets.h540],
+      videoEncoding: { maxBitrate: 1_800_000, maxFramerate: 30 },
+      degradationPreference: 'maintain-resolution'
     }
   });
 }
