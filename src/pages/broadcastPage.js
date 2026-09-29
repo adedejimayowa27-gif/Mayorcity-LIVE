@@ -359,9 +359,32 @@ async function handleToggleCamera(e) {
   if (goLiveBtn) goLiveBtn.disabled = !nowOn;
 
   if (nowOn) {
-    await room.localParticipant.setMicrophoneEnabled(true);
+    try {
+      await room.localParticipant.setMicrophoneEnabled(true);
+    } catch {
+      showToast('Camera is on but the microphone was blocked. Allow microphone access so viewers can hear you.', {
+        title: 'Microphone error',
+        variant: 'error'
+      });
+    }
+    syncControlState();
     if (activeTab === 'settings') populateDeviceOptions();
   }
+}
+
+// renderBroadcastUI() rebuilds the DOM (e.g. on Go live), which resets the
+// buttons to their defaults. Re-apply the real camera/mic state afterwards.
+function syncControlState() {
+  if (!room) return;
+  const cameraOn = room.localParticipant.isCameraEnabled;
+  const micOn = room.localParticipant.isMicrophoneEnabled;
+  document.getElementById('toggle-camera').textContent = cameraOn ? 'Stop camera' : 'Start camera';
+  const micBtn = document.getElementById('toggle-mic');
+  micBtn.disabled = !cameraOn;
+  micBtn.textContent = micOn ? 'Mute mic' : 'Unmute mic';
+  document.getElementById('monitor-placeholder').style.display = cameraOn ? 'none' : 'flex';
+  const goLiveBtn = document.getElementById('go-live');
+  if (goLiveBtn) goLiveBtn.disabled = !cameraOn;
 }
 
 async function handleToggleMic(e) {
@@ -399,6 +422,7 @@ async function handleGoLive(e) {
     }
   }
   renderBroadcastUI();
+  syncControlState();
   reattachVideo();
 }
 
