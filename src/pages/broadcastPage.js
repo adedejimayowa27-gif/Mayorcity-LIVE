@@ -12,6 +12,7 @@ import {
 } from '../components/uiKit.js';
 import { createModal } from '../components/modal.js';
 import { initChatPanel } from '../components/chatPanel.js';
+import { getBlocks, unblockAuthor } from '../services/chatService.js';
 import { serverNow, syncServerTime } from '../utils/serverTime.js';
 import { setButtonLoading, escapeHtml } from '../utils/dom.js';
 import { lockLandscape, unlockOrientation } from '../utils/orientation.js';
@@ -214,13 +215,15 @@ function renderTabPanel(isFootball) {
   chatPanelInstance = null;
 
   if (activeTab === 'chat') {
-    panel.innerHTML = `<div id="host-chat-mount"></div>`;
+    panel.innerHTML = `<div id="chat-controls-mount"></div><div id="host-chat-mount"></div>`;
     chatPanelInstance = initChatPanel({
       mountEl: document.getElementById('host-chat-mount'),
       eventId: event.id,
       session: hostSession,
-      isHost: true
+      isHost: true,
+      onBlocked: renderChatControls
     });
+    renderChatControls();
     return;
   }
 
@@ -417,6 +420,71 @@ function wireOverlayControls(isFootball) {
   });
 
   wireClockControls(isFootball);
+}
+
+// Banned words + blocked people, shown above the chat on the host's Chat tab.
+async function renderChatControls() {
+  const mount = document.getElementById('chat-controls-mount');
+  if (!mount) return;
+
+  const words = (event.chat_banned_words || []).join(', ');
+  const { data: blocks = [] } = await getBlocks(event.id);
+  if (!document.getElementById('chat-controls-mount')) return;
+
+  mount.innerHTML = `
+    <div class="card chat-controls">
+      <h3>Banned words</h3>
+      <textarea class="input" id="banned-words" placeholder="Separate words with commas" maxlength="800">${escapeHtml(words)}</textarea>
+      <button class="btn btn-secondary" type="button" id="save-banned-words" style="margin-top: var(--space-2);">Save words</button>
+
+      ${
+        blocks.length
+          ? `<h3 style="margin-top: var(--space-4);">Blocked</h3>
+             <div class="chat-blocked-list">${blocks
+               .map(
+                 (b) => `<span class="chat-blocked-chip">${escapeHtml(b.author_name)}
+                   <button type="button" data-unblock="${b.id}">Unblock</button></span>`
+               )
+               .join('')}</div>`
+          : ''
+      }
+    </div>
+  `;
+
+  document.getElementById('save-banned-words').addEventListener('click', async (clickEvent) => {
+    const list = [
+      ...new Set(
+        document
+          .getElementById('banned-words')
+          .value.split(/[,\n]/)
+          .map((w) => w.trim().toLowerCase().slice(0, 40))
+          .filter(Boolean)
+      )
+    ].slice(0, 50);
+
+    const btn = clickEvent.currentTarget;
+    setButtonLoading(btn, true);
+    const { error } = await updateEvent(event.id, { chatBannedWords: list });
+    setButtonLoading(btn, false);
+
+    if (error) {
+      showToast(error, { title: "Couldn't save words", variant: 'error' });
+      return;
+    }
+    event.chat_banned_words = list;
+    showToast('Banned words saved.', { variant: 'success' });
+  });
+
+  mount.querySelectorAll('[data-unblock]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const { error } = await unblockAuthor(btn.dataset.unblock);
+      if (error) {
+        showToast(error, { title: "Couldn't unblock", variant: 'error' });
+        return;
+      }
+      renderChatControls();
+    });
+  });
 }
 
 function wirePresenterControls(isFootball) {
