@@ -191,12 +191,9 @@ function renderPlayerControls(videoEl) {
         /* fall through to the fallbacks below */
       }
     }
-    if (videoEl.webkitEnterFullscreen) {
-      // iPhone Safari: native player, rotates with the phone automatically.
-      videoEl.webkitEnterFullscreen();
-    } else {
-      container.classList.add('is-pseudo-fullscreen');
-    }
+    // No Fullscreen API (iPhone Safari). Don't use the native video player —
+    // it would hide the scoreboard/programme overlays — fill the screen instead.
+    container.classList.add('is-pseudo-fullscreen');
   });
 }
 
