@@ -131,7 +131,7 @@ if (typeof window !== 'undefined' && !window.__mayorcityClockTicker) {
   window.__mayorcityClockTicker = window.setInterval(tickClocks, 500);
 }
 
-export function renderOverlayHtml(overlay) {
+function renderMainOverlayHtml(overlay) {
   if (!overlay || !overlay.visible || !overlay.type) return '';
 
   if (overlay.type === 'programme') {
@@ -164,4 +164,31 @@ export function renderOverlayHtml(overlay) {
   }
 
   return '';
+}
+
+/** Presenter lower-third / "Speaking now" badge. Shown independently of the
+ *  programme graphic or scoreboard, so it can sit alongside either. */
+function renderPresenterHtml(overlay) {
+  const presenter = overlay?.presenter;
+  if (!presenter || !presenter.visible || !presenter.name) return '';
+
+  const speaking = presenter.mode !== 'presenter';
+  const stacked = overlay.visible && overlay.type === 'programme' ? ' overlay-presenter-raised' : '';
+
+  return `
+    <div class="overlay-presenter${stacked}">
+      ${
+        speaking
+          ? '<div class="overlay-presenter-label"><span class="overlay-presenter-dot" aria-hidden="true"></span>Speaking now</div>'
+          : ''
+      }
+      <div class="overlay-presenter-name">${escapeHtml(presenter.name)}</div>
+      ${presenter.role ? `<div class="overlay-presenter-role">${escapeHtml(presenter.role)}</div>` : ''}
+    </div>
+  `;
+}
+
+export function renderOverlayHtml(overlay) {
+  if (!overlay) return '';
+  return renderMainOverlayHtml(overlay) + renderPresenterHtml(overlay);
 }
