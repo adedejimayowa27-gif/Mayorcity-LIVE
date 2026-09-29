@@ -22,6 +22,12 @@ let viewerRoom = null;
 let currentStatus = null;
 let viewerAudioEls = [];
 const attachedTrackSids = new Set();
+let currentEventId = null;
+let reconnectTimer = null;
+let reconnectAttempts = 0;
+let intentionalDisconnect = false;
+let isConnecting = false;
+let noVideoTimer = null;
 
 function categoryLabel(value) {
   return EVENT_CATEGORIES.find((c) => c.value === value)?.label || value;
@@ -87,11 +93,44 @@ function renderEvent(event) {
     ${event.description ? `<p class="event-detail-description">${escapeHtml(event.description)}</p>` : ''}
   `;
 
+  if (event.status === 'ended') renderEndedScreen(event);
+
   if (event.status === 'live') {
+    currentEventId = event.id;
     connectViewer(event.id);
   } else {
     disconnectViewer();
   }
+}
+
+// A proper "this broadcast has ended" screen instead of a blank player.
+function renderEndedScreen(event) {
+  const monitor = document.querySelector('.hero-monitor');
+  if (!monitor) return;
+
+  const board = event.overlay?.scoreboard;
+  const showScore = board && (board.scoreA > 0 || board.scoreB > 0 || board.clock?.period === 'FT');
+  const finalScore = showScore
+    ? `<div class="ended-score">Final score: ${escapeHtml(board.teamA)} ${board.scoreA} &ndash; ${board.scoreB} ${escapeHtml(board.teamB)}</div>`
+    : '';
+
+  ['monitor-caption', 'monitor-overlay'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  document.getElementById('monitor-note')?.style.setProperty('display', 'none');
+
+  monitor.insertAdjacentHTML(
+    'beforeend',
+    `
+    <div class="ended-panel" role="status">
+      <div class="ended-title">This broadcast has ended</div>
+      <p class="ended-body">Thanks for watching ${escapeHtml(event.title)}.</p>
+      ${finalScore}
+      <a class="btn btn-primary" href="/events.html">Watch other broadcasts</a>
+    </div>
+  `
+  );
 }
 
 // Lightweight update used for anything that isn't a status change —
@@ -101,13 +140,68 @@ function updateOverlayOnly(overlay) {
   if (el) el.innerHTML = renderOverlayHtml(overlay);
 }
 
-function showConnecting(message) {
+function showConnecting(message, { retry = false } = {}) {
   const el = document.getElementById('player-connecting');
   if (!el) return;
   el.hidden = false;
   el.className = 'player-connecting';
-  el.innerHTML = `<div class="spinner" aria-hidden="true"></div><span>${message}</span>`;
+  el.innerHTML = `
+    <div class="spinner" aria-hidden="true"></div>
+    <span>${message}</span>
+    ${retry ? '<button class="btn btn-secondary player-retry-btn" id="player-retry" type="button">Retry now</button>' : ''}
+  `;
+  document.getElementById('player-retry')?.addEventListener('click', retryNow);
 }
+
+function retryNow() {
+  window.clearTimeout(reconnectTimer);
+  reconnectTimer = null;
+  if (currentEventId && currentStatus === 'live') connectViewer(currentEventId);
+}
+
+// Retries with a growing delay (2s, 4s, 8s, 16s, then every 30s) for as long
+// as the broadcast is live, so a viewer on weak data recovers by themselves.
+function scheduleReconnect(eventId) {
+  if (reconnectTimer || currentStatus !== 'live') return;
+
+  reconnectAttempts += 1;
+  const delay = Math.min(30000, 1000 * 2 ** Math.min(reconnectAttempts, 5));
+  const offline = navigator.onLine === false;
+
+  showConnecting(
+    offline
+      ? "You're offline. We'll reconnect as soon as your internet is back."
+      : `Connection lost. Reconnecting in ${Math.round(delay / 1000)}s…`,
+    { retry: true }
+  );
+
+  reconnectTimer = window.setTimeout(() => {
+    reconnectTimer = null;
+    connectViewer(eventId);
+  }, delay);
+}
+
+function clearViewerAudio() {
+  viewerAudioEls.forEach((el) => el.remove());
+  viewerAudioEls = [];
+}
+
+function hostHasVideo(room) {
+  for (const participant of room.remoteParticipants.values()) {
+    for (const pub of participant.trackPublications.values()) {
+      if (pub.kind === 'video' && !pub.isMuted && pub.track) return true;
+    }
+  }
+  return false;
+}
+
+window.addEventListener('offline', () => {
+  if (currentStatus === 'live') showConnecting("You're offline. We'll reconnect as soon as your internet is back.");
+});
+
+window.addEventListener('online', () => {
+  if (currentStatus === 'live' && !viewerRoom) retryNow();
+});
 
 function hideConnecting() {
   const el = document.getElementById('player-connecting');
@@ -211,20 +305,34 @@ document.addEventListener('fullscreenchange', onFullscreenChange);
 document.addEventListener('webkitfullscreenchange', onFullscreenChange);
 
 async function connectViewer(eventId) {
-  if (viewerRoom) return; // already connected
+  if (viewerRoom || isConnecting) return; // already connected / in progress
+
+  isConnecting = true;
+  intentionalDisconnect = false;
+  currentEventId = eventId;
 
   showConnecting('Connecting to the live stream…');
   attachedTrackSids.clear();
-  viewerAudioEls = [];
+  clearViewerAudio();
 
   try {
     viewerRoom = await connectAsViewer(eventId);
   } catch (err) {
-    hideConnecting();
-    const note = document.getElementById('monitor-note');
-    if (note) note.textContent = "Couldn't connect to the live stream. Try refreshing the page.";
+    isConnecting = false;
+    scheduleReconnect(eventId);
     return;
   }
+  isConnecting = false;
+  reconnectAttempts = 0;
+  const room = viewerRoom;
+
+  // If the host's video never shows up, say so instead of spinning forever.
+  window.clearTimeout(noVideoTimer);
+  noVideoTimer = window.setTimeout(() => {
+    if (viewerRoom === room && !hostHasVideo(room)) {
+      showConnecting("Waiting for the host's video… If this takes long, the host may have lost connection.");
+    }
+  }, 15000);
 
   updateViewerCount(viewerRoom);
 
@@ -264,6 +372,7 @@ async function connectViewer(eventId) {
     if (frame) frame.style.display = 'none';
     if (caption) caption.style.display = 'none';
     if (note) note.style.display = 'none';
+    window.clearTimeout(noVideoTimer);
     hideConnecting();
     renderPlayerControls(videoEl);
   }
@@ -284,14 +393,39 @@ async function connectViewer(eventId) {
     if (prompt && viewerRoom && !viewerRoom.canPlaybackAudio) prompt.hidden = false;
   });
 
-  viewerRoom.on(RoomEvent.Reconnecting, () => showConnecting('Reconnecting…'));
-  viewerRoom.on(RoomEvent.Reconnected, () => hideConnecting());
+  viewerRoom.on(RoomEvent.Reconnecting, () => showConnecting('Your connection is weak. Reconnecting…'));
+  viewerRoom.on(RoomEvent.Reconnected, () => {
+    if (hostHasVideo(room)) hideConnecting();
+  });
+
+  // Host paused or lost their video.
+  const onHostVideoGone = (pubOrTrack) => {
+    if ((pubOrTrack?.kind ?? '') !== 'video') return;
+    showConnecting("The host's video is paused. It will resume automatically.");
+  };
+  viewerRoom.on(RoomEvent.TrackMuted, onHostVideoGone);
+  viewerRoom.on(RoomEvent.TrackUnsubscribed, (track) => onHostVideoGone(track));
+  viewerRoom.on(RoomEvent.TrackUnmuted, (pub) => {
+    if (pub?.kind === 'video') hideConnecting();
+  });
+  viewerRoom.on(RoomEvent.ParticipantDisconnected, () => {
+    if (viewerRoom === room && !hostHasVideo(room)) {
+      showConnecting('The host has lost connection. Waiting for them to come back…');
+    }
+  });
+
   viewerRoom.on(RoomEvent.Disconnected, () => {
-    viewerRoom = null;
+    if (viewerRoom === room) viewerRoom = null;
+    clearViewerAudio();
+    if (!intentionalDisconnect && currentStatus === 'live') scheduleReconnect(eventId);
   });
 }
 
 function disconnectViewer() {
+  intentionalDisconnect = true;
+  window.clearTimeout(reconnectTimer);
+  window.clearTimeout(noVideoTimer);
+  reconnectTimer = null;
   if (viewerRoom) {
     viewerRoom.disconnect();
     viewerRoom = null;
