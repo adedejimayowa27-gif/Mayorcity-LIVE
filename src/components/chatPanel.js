@@ -11,6 +11,7 @@ import {
   saveDisplayName
 } from '../services/chatService.js';
 import { escapeHtml } from '../utils/dom.js';
+import { showToast } from './toast.js';
 
 /**
  * @param {{
@@ -78,6 +79,9 @@ export function initChatPanel({ mountEl, eventId, session, isHost = false }) {
   }
 
   function appendMessage(message) {
+    // The same message can arrive twice (once from our own send, once from
+    // the realtime feed) — only show it once.
+    if (messagesEl.querySelector(`[data-message-id="${message.id}"]`)) return;
     messagesEl.insertAdjacentHTML('beforeend', messageHtml(message));
     wireDeleteButton(message.id);
     scrollToBottom();
@@ -118,13 +122,19 @@ export function initChatPanel({ mountEl, eventId, session, isHost = false }) {
       if (!body.trim()) return;
 
       input.disabled = true;
-      const { error } = await sendMessage({ eventId, authorId, authorName, body });
+      const { data, error } = await sendMessage({ eventId, authorId, authorName, body });
       input.disabled = false;
 
-      if (!error) {
-        input.value = '';
+      if (error) {
+        showToast(error, { title: "Couldn't send message", variant: 'error' });
         input.focus();
+        return;
       }
+
+      input.value = '';
+      input.focus();
+      // Show it straight away instead of waiting for the realtime feed.
+      if (data) appendMessage(data);
     });
   }
 
