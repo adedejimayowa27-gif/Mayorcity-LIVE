@@ -12,6 +12,7 @@ import {
 } from '../components/uiKit.js';
 import { createModal } from '../components/modal.js';
 import { initChatPanel } from '../components/chatPanel.js';
+import { serverNow, syncServerTime } from '../utils/serverTime.js';
 import { setButtonLoading, escapeHtml } from '../utils/dom.js';
 import { lockLandscape, unlockOrientation } from '../utils/orientation.js';
 
@@ -401,6 +402,15 @@ function wireOverlayControls(isFootball) {
       const team = btn.dataset.score === 'a' ? 'scoreA' : 'scoreB';
       const delta = Number(btn.dataset.delta);
       overlayState.scoreboard[team] = Math.max(0, overlayState.scoreboard[team] + delta);
+      if (delta > 0) {
+        // Stamp a goal so every viewer sees a one-off "GOAL!" banner.
+        overlayState.scoreboard.goal = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          team: btn.dataset.score,
+          name: btn.dataset.score === 'a' ? overlayState.scoreboard.teamA : overlayState.scoreboard.teamB,
+          at: serverNow()
+        };
+      }
       document.getElementById(`score-${btn.dataset.score}-value`).textContent = overlayState.scoreboard[team];
       persistOverlay();
     });
@@ -507,7 +517,7 @@ function wireClockControls() {
   document.querySelectorAll('[data-clock-action]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const action = btn.dataset.clockAction;
-      const now = Date.now();
+      const now = serverNow();
       const half = clock.halfLength * 60;
 
       if (action === 'kickoff') {
@@ -748,6 +758,7 @@ function stopLiveTimer() {
 }
 
 async function init() {
+  syncServerTime();
   document.getElementById('confirm-end-broadcast').addEventListener('click', confirmEndBroadcast);
 
   const session = await requireAuth();
