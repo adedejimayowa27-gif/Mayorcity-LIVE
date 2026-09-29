@@ -75,6 +75,62 @@ export function createErrorState({ title = 'Something went wrong', body, onRetry
  * what the host sees is exactly what the audience sees.
  * @param {{ type?: 'programme' | 'scoreboard', visible?: boolean, programme?: object, scoreboard?: object } | null} overlay
  */
+
+/* ---- Match clock ------------------------------------------------------
+   The clock is stored as plain numbers inside overlay.scoreboard.clock:
+     { period: 'PRE'|'1H'|'HT'|'2H'|'FT', running, baseSeconds, startedAt, halfLength, visible }
+   Nothing ticks in the database — every screen works out the current time
+   itself from baseSeconds + (now - startedAt), so host and viewers agree. */
+
+export function getClockElapsedSeconds(clock, now = Date.now()) {
+  if (!clock) return 0;
+  const base = Number(clock.baseSeconds) || 0;
+  if (!clock.running || !clock.startedAt) return Math.max(0, base);
+  return Math.max(0, base + (now - clock.startedAt) / 1000);
+}
+
+/** "12:05", "45+2'" for stoppage time, or "HT" / "FT". */
+export function formatMatchClock(clock, now = Date.now()) {
+  if (!clock || clock.period === 'PRE') return '';
+  if (clock.period === 'HT') return 'HT';
+  if (clock.period === 'FT') return 'FT';
+
+  const elapsed = Math.floor(getClockElapsedSeconds(clock, now));
+  const half = Math.max(1, Number(clock.halfLength) || 45);
+  const cap = (clock.period === '2H' ? half * 2 : half) * 60;
+
+  if (elapsed >= cap) {
+    const added = Math.floor((elapsed - cap) / 60) + 1;
+    return `${cap / 60}+${added}'`;
+  }
+  const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
+  const ss = String(elapsed % 60).padStart(2, '0');
+  return `${mm}:${ss}`;
+}
+
+/** data-* attributes that let the shared ticker keep an element up to date. */
+export function clockDataAttrs(clock) {
+  if (!clock) return '';
+  return `data-clock="1" data-clock-period="${clock.period}" data-clock-running="${clock.running ? 1 : 0}" data-clock-base="${Number(clock.baseSeconds) || 0}" data-clock-start="${Number(clock.startedAt) || 0}" data-clock-half="${Number(clock.halfLength) || 45}"`;
+}
+
+function tickClocks() {
+  document.querySelectorAll('[data-clock]').forEach((el) => {
+    const text = formatMatchClock({
+      period: el.dataset.clockPeriod,
+      running: el.dataset.clockRunning === '1',
+      baseSeconds: Number(el.dataset.clockBase),
+      startedAt: Number(el.dataset.clockStart),
+      halfLength: Number(el.dataset.clockHalf)
+    });
+    if (el.textContent !== text) el.textContent = text;
+  });
+}
+
+if (typeof window !== 'undefined' && !window.__mayorcityClockTicker) {
+  window.__mayorcityClockTicker = window.setInterval(tickClocks, 500);
+}
+
 export function renderOverlayHtml(overlay) {
   if (!overlay || !overlay.visible || !overlay.type) return '';
 
@@ -90,7 +146,11 @@ export function renderOverlayHtml(overlay) {
   }
 
   if (overlay.type === 'scoreboard') {
-    const { teamA = 'Team A', teamB = 'Team B', scoreA = 0, scoreB = 0 } = overlay.scoreboard || {};
+    const { teamA = 'Team A', teamB = 'Team B', scoreA = 0, scoreB = 0, clock } = overlay.scoreboard || {};
+    const clockText = clock && clock.visible !== false ? formatMatchClock(clock) : '';
+    const clockHtml = clockText
+      ? `<span class="overlay-scoreboard-clock" ${clockDataAttrs(clock)}>${escapeHtml(clockText)}</span>`
+      : '';
     return `
       <div class="overlay-scoreboard">
         <span class="overlay-scoreboard-team">${escapeHtml(teamA)}</span>
@@ -98,6 +158,7 @@ export function renderOverlayHtml(overlay) {
         <span class="overlay-scoreboard-dash">&ndash;</span>
         <span class="overlay-scoreboard-score">${scoreB}</span>
         <span class="overlay-scoreboard-team">${escapeHtml(teamB)}</span>
+        ${clockHtml}
       </div>
     `;
   }
