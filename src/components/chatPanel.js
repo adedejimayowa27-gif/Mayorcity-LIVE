@@ -22,7 +22,13 @@ import { showToast } from './toast.js';
  * }} options
  * @returns {{ destroy: () => void }}
  */
+let activeInstance = null;
+
 export function initChatPanel({ mountEl, eventId, session, isHost = false }) {
+  // Re-initialising (e.g. after a guest enters their name) must stop the
+  // previous instance first, or its listeners and timers keep running.
+  activeInstance?.destroy();
+
   let authorId = session?.user?.id || null;
   let authorName = session?.user?.user_metadata?.full_name || session?.user?.email || '';
   let needsNamePrompt = !authorId && !authorName;
@@ -63,7 +69,7 @@ export function initChatPanel({ mountEl, eventId, session, isHost = false }) {
     const time = new Date(message.created_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 
     return `
-      <div class="chat-message" data-message-id="${message.id}">
+      <div class="chat-message" data-message-id="${message.id}" data-created-at="${message.created_at}">
         <div class="chat-message-meta">
           <span class="chat-message-author">${escapeHtml(message.author_name)}${isMine ? ' (you)' : ''}</span>
           <span class="chat-message-time">${time}</span>
@@ -82,9 +88,10 @@ export function initChatPanel({ mountEl, eventId, session, isHost = false }) {
     // The same message can arrive twice (once from our own send, once from
     // the realtime feed) — only show it once.
     if (messagesEl.querySelector(`[data-message-id="${message.id}"]`)) return;
+    const nearBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 80;
     messagesEl.insertAdjacentHTML('beforeend', messageHtml(message));
     wireDeleteButton(message.id);
-    scrollToBottom();
+    if (nearBottom || message.author_id === authorId) scrollToBottom();
   }
 
   function removeMessage(id) {
@@ -142,9 +149,30 @@ export function initChatPanel({ mountEl, eventId, session, isHost = false }) {
   wireChatForm();
 
   let unsubscribe = () => {};
+  let pollTimer = null;
+  let destroyed = false;
+
+  // Realtime is the fast path, but it only works if the chat_messages table
+  // is in Supabase's realtime publication. Polling guarantees everyone sees
+  // every message (and deletions) within a few seconds either way.
+  async function syncMessages() {
+    const { data } = await getRecentMessages(eventId);
+    if (!data || destroyed) return;
+
+    const fetchedIds = new Set(data.map((m) => m.id));
+    data.forEach(appendMessage);
+
+    const oldestFetched = data.length ? new Date(data[0].created_at).getTime() : 0;
+    messagesEl.querySelectorAll('[data-message-id]').forEach((el) => {
+      const id = el.getAttribute('data-message-id');
+      const createdAt = new Date(el.getAttribute('data-created-at')).getTime();
+      if (!fetchedIds.has(id) && (data.length < 50 || createdAt >= oldestFetched)) el.remove();
+    });
+  }
 
   (async () => {
     const { data } = await getRecentMessages(eventId);
+    if (destroyed) return;
     if (data) {
       messagesEl.innerHTML = data.map(messageHtml).join('');
       data.forEach((m) => wireDeleteButton(m.id));
@@ -155,9 +183,18 @@ export function initChatPanel({ mountEl, eventId, session, isHost = false }) {
       onInsert: appendMessage,
       onDelete: removeMessage
     });
+
+    pollTimer = window.setInterval(syncMessages, 4000);
   })();
 
-  return {
-    destroy: () => unsubscribe()
+  const instance = {
+    destroy: () => {
+      destroyed = true;
+      window.clearInterval(pollTimer);
+      unsubscribe();
+      if (activeInstance === instance) activeInstance = null;
+    }
   };
+  activeInstance = instance;
+  return instance;
 }
