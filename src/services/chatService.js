@@ -63,7 +63,9 @@ export async function deleteMessage(id) {
  */
 export function subscribeToChat(eventId, { onInsert, onDelete } = {}) {
   const channel = supabase
-    .channel(`chat-${eventId}`)
+    // Unique topic per subscription: re-using one topic after it is already
+    // subscribed makes supabase-js throw when new listeners are added.
+    .channel(`chat-${eventId}-${Math.random().toString(36).slice(2, 8)}`)
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `event_id=eq.${eventId}` },
