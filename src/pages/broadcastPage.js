@@ -6,6 +6,7 @@ import { createErrorState, createLiveBadge, renderOverlayHtml } from '../compone
 import { createModal } from '../components/modal.js';
 import { initChatPanel } from '../components/chatPanel.js';
 import { setButtonLoading, escapeHtml } from '../utils/dom.js';
+import { lockLandscape, unlockOrientation } from '../utils/orientation.js';
 
 initToastRegion();
 
@@ -383,6 +384,20 @@ async function handleGoLive(e) {
 
   event = data;
   showToast('You\u2019re live.', { variant: 'success' });
+
+  // Go landscape for the broadcast. Android Chrome only allows the lock in
+  // fullscreen, so try the lock first and fall back to fullscreen + lock.
+  const isPhone = window.matchMedia('(pointer: coarse)').matches;
+  if (isPhone && !(await lockLandscape())) {
+    try {
+      await document.documentElement.requestFullscreen();
+      if (!(await lockLandscape())) {
+        showToast('Turn your phone sideways so viewers see a landscape picture.', { variant: 'default' });
+      }
+    } catch {
+      showToast('Turn your phone sideways so viewers see a landscape picture.', { variant: 'default' });
+    }
+  }
   renderBroadcastUI();
   reattachVideo();
 }
@@ -393,6 +408,8 @@ async function confirmEndBroadcast() {
 
   const { error } = await updateEvent(event.id, { status: 'ended' });
 
+  unlockOrientation();
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   await room.localParticipant.setCameraEnabled(false);
   await room.disconnect();
   stopLiveTimer();
