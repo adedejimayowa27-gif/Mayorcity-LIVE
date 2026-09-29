@@ -215,8 +215,10 @@ async function connectViewer(eventId) {
     const note = document.getElementById('monitor-note');
     if (!videoEl) return;
 
-    track.attach(videoEl);
+    // Show the element before attaching so adaptive streaming sees a real,
+    // visible size and requests the right quality layer straight away.
     videoEl.style.display = 'block';
+    track.attach(videoEl);
     videoEl.play?.().catch(() => {});
     if (frame) frame.style.display = 'none';
     if (caption) caption.style.display = 'none';
