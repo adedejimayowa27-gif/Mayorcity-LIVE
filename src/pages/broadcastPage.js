@@ -371,9 +371,10 @@ async function handleToggleMic(e) {
 }
 
 async function handleGoLive(e) {
-  setButtonLoading(e.currentTarget, true, 'Going live…');
+  const btn = e.currentTarget;
+  setButtonLoading(btn, true, 'Going live…');
   const { data, error } = await updateEvent(event.id, { status: 'live' });
-  setButtonLoading(e.currentTarget, false);
+  setButtonLoading(btn, false);
 
   if (error) {
     showToast(error, { title: "Couldn't go live", variant: 'error' });
