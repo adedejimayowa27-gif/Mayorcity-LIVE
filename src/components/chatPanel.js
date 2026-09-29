@@ -6,6 +6,7 @@ import {
   getRecentMessages,
   sendMessage,
   deleteMessage,
+  blockAuthor,
   subscribeToChat,
   getSavedDisplayName,
   saveDisplayName
@@ -24,7 +25,7 @@ import { showToast } from './toast.js';
  */
 let activeInstance = null;
 
-export function initChatPanel({ mountEl, eventId, session, isHost = false }) {
+export function initChatPanel({ mountEl, eventId, session, isHost = false, onBlocked }) {
   // Re-initialising (e.g. after a guest enters their name) must stop the
   // previous instance first, or its listeners and timers keep running.
   activeInstance?.destroy();
@@ -73,6 +74,7 @@ export function initChatPanel({ mountEl, eventId, session, isHost = false }) {
         <div class="chat-message-meta">
           <span class="chat-message-author">${escapeHtml(message.author_name)}${isMine ? ' (you)' : ''}</span>
           <span class="chat-message-time">${time}</span>
+          ${isHost && !isMine ? `<button class="chat-message-block" type="button" data-block-id="${message.id}" data-block-name="${escapeHtml(message.author_name)}" data-block-author="${message.author_id || ''}">Block</button>` : ''}
           ${isHost ? `<button class="chat-message-delete" type="button" data-delete-id="${message.id}" aria-label="Delete message">&times;</button>` : ''}
         </div>
         <div class="chat-message-body">${escapeHtml(message.body)}</div>
@@ -100,6 +102,23 @@ export function initChatPanel({ mountEl, eventId, session, isHost = false }) {
 
   function wireDeleteButton(id) {
     if (!isHost) return;
+    messagesEl.querySelector(`[data-block-id="${id}"]`)?.addEventListener('click', async (event) => {
+      const btn = event.currentTarget;
+      const name = btn.dataset.blockName;
+      if (!window.confirm(`Block "${name}" from this chat? Their messages will be removed.`)) return;
+      const { error } = await blockAuthor({ eventId, authorName: name, authorId: btn.dataset.blockAuthor || null });
+      if (error) {
+        showToast(error, { title: "Couldn't block", variant: 'error' });
+        return;
+      }
+      messagesEl.querySelectorAll('[data-block-name]').forEach((el) => {
+        if (el.dataset.blockName.toLowerCase() === name.toLowerCase()) {
+          el.closest('.chat-message')?.remove();
+        }
+      });
+      showToast(`${name} is blocked from this chat.`, { variant: 'success' });
+      onBlocked?.();
+    });
     messagesEl.querySelector(`[data-delete-id="${id}"]`)?.addEventListener('click', async () => {
       const { error } = await deleteMessage(id);
       if (!error) removeMessage(id);
@@ -116,7 +135,7 @@ export function initChatPanel({ mountEl, eventId, session, isHost = false }) {
       authorName = name;
       saveDisplayName(name);
       needsNamePrompt = false;
-      initChatPanel({ mountEl, eventId, session, isHost });
+      initChatPanel({ mountEl, eventId, session, isHost, onBlocked });
     });
   }
 
@@ -128,6 +147,19 @@ export function initChatPanel({ mountEl, eventId, session, isHost = false }) {
       const body = input.value;
       if (!body.trim()) return;
 
+      // Quick client-side check so people get instant feedback; the database
+      // enforces the same limits for anyone who bypasses this.
+      const now = Date.now();
+      recentSends = recentSends.filter((t) => now - t < 15000);
+      if (recentSends.length && now - recentSends[recentSends.length - 1] < 2000) {
+        showToast('Please wait a moment before sending another message.', { variant: 'error' });
+        return;
+      }
+      if (recentSends.length >= 5) {
+        showToast("You're sending messages too fast. Please slow down.", { variant: 'error' });
+        return;
+      }
+
       input.disabled = true;
       const { data, error } = await sendMessage({ eventId, authorId, authorName, body });
       input.disabled = false;
@@ -138,6 +170,7 @@ export function initChatPanel({ mountEl, eventId, session, isHost = false }) {
         return;
       }
 
+      recentSends.push(Date.now());
       input.value = '';
       input.focus();
       // Show it straight away instead of waiting for the realtime feed.
@@ -148,6 +181,7 @@ export function initChatPanel({ mountEl, eventId, session, isHost = false }) {
   wireNameForm();
   wireChatForm();
 
+  let recentSends = [];
   let unsubscribe = () => {};
   let pollTimer = null;
   let destroyed = false;
