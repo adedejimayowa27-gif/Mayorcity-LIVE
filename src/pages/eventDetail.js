@@ -1,3 +1,4 @@
+import { syncServerTime } from '../utils/serverTime.js';
 import { initNavbar } from '../components/navbar.js';
 import { initFooter } from '../components/footer.js';
 import { initToastRegion, showToast } from '../components/toast.js';
@@ -12,6 +13,7 @@ import { lockLandscape, unlockOrientation } from '../utils/orientation.js';
 initNavbar();
 initFooter();
 initToastRegion();
+syncServerTime();
 
 const content = document.getElementById('event-detail-content');
 
