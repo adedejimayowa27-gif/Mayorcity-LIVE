@@ -144,50 +144,72 @@ function renderPlayerControls(videoEl) {
   const fullscreenToggle = document.getElementById('fullscreen-toggle');
 
   function applyMuted(muted) {
-    videoEl.muted = muted;
+    videoEl.muted = muted; // the <video> carries no audio; sound comes from the <audio> elements
     viewerAudioEls.forEach((el) => {
       el.muted = muted;
+      if (!muted) {
+        el.volume = 1;
+        el.play?.().catch(() => {});
+      }
     });
     if (!muted) {
       // Browsers only allow sound after a tap — this runs inside one.
       viewerRoom?.startAudio?.().catch(() => {});
-      viewerAudioEls.forEach((el) => el.play?.().catch(() => {}));
-      unmutePrompt.style.display = 'none';
+      unmutePrompt.hidden = true;
     }
+    muteToggle.innerHTML = muted ? ICON_MUTED : ICON_UNMUTED;
+    muteToggle.setAttribute('aria-label', muted ? 'Unmute' : 'Mute');
   }
 
-  function unmute() {
-    applyMuted(false);
-  }
+  muteToggle.innerHTML = videoEl.muted ? ICON_MUTED : ICON_UNMUTED;
+  if (!videoEl.muted) unmutePrompt.hidden = true;
 
-  unmutePrompt.addEventListener('click', unmute);
-  muteToggle.addEventListener('click', () => {
-    applyMuted(!videoEl.muted);
-  });
+  unmutePrompt.addEventListener('click', () => applyMuted(false));
+  muteToggle.addEventListener('click', () => applyMuted(!videoEl.muted));
+
   fullscreenToggle.addEventListener('click', async () => {
     const container = videoEl.closest('.hero-monitor');
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
+    const fsElement = document.fullscreenElement || document.webkitFullscreenElement;
+
+    if (fsElement) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
       return;
     }
-    if (container.requestFullscreen) {
+    if (container.classList.contains('is-pseudo-fullscreen')) {
+      container.classList.remove('is-pseudo-fullscreen');
+      unlockOrientation();
+      return;
+    }
+
+    const request = container.requestFullscreen || container.webkitRequestFullscreen;
+    if (request) {
       try {
-        await container.requestFullscreen();
-        lockLandscape(); // turn the phone screen to landscape while fullscreen
+        await request.call(container);
+        lockLandscape();
+        return;
       } catch {
-        /* fullscreen refused — stay inline */
+        /* fall through to the fallbacks below */
       }
-    } else if (videoEl.webkitEnterFullscreen) {
+    }
+    if (videoEl.webkitEnterFullscreen) {
       // iPhone Safari: native player, rotates with the phone automatically.
       videoEl.webkitEnterFullscreen();
+    } else {
+      container.classList.add('is-pseudo-fullscreen');
     }
   });
-
-  // Covers every way out of fullscreen (button, back gesture, Esc).
-  document.addEventListener('fullscreenchange', () => {
-    if (!document.fullscreenElement) unlockOrientation();
-  });
 }
+
+const ICON_UNMUTED = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 6v4h3l4 3V3L5 6H2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M11.5 5.5c1 1.2 1 3.8 0 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
+const ICON_MUTED = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 6v4h3l4 3V3L5 6H2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M11 6l3 4M14 6l-3 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
+
+// Covers every way out of fullscreen (button, back gesture, Esc). Registered
+// once, not on every render of the controls.
+function onFullscreenChange() {
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) unlockOrientation();
+}
+document.addEventListener('fullscreenchange', onFullscreenChange);
+document.addEventListener('webkitfullscreenchange', onFullscreenChange);
 
 async function connectViewer(eventId) {
   if (viewerRoom) return; // already connected
@@ -218,10 +240,14 @@ async function connectViewer(eventId) {
 
     if (track.kind === 'audio') {
       const audioEl = track.attach();
+      audioEl.autoplay = true;
       audioEl.muted = videoEl ? videoEl.muted : true;
-      audioEl.style.display = 'none';
+      // Not display:none — some mobile browsers won't play hidden media.
+      audioEl.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;';
       document.body.appendChild(audioEl);
       viewerAudioEls.push(audioEl);
+      // Audio can arrive after the video; make sure controls exist either way.
+      if (videoEl && !document.getElementById('mute-toggle')) renderPlayerControls(videoEl);
       return;
     }
 
@@ -252,6 +278,11 @@ async function connectViewer(eventId) {
     participant.trackPublications.forEach((pub) => {
       if (pub.track) handleTrack(pub.track);
     });
+  });
+
+  viewerRoom.on(RoomEvent.AudioPlaybackStatusChanged, () => {
+    const prompt = document.getElementById('unmute-prompt');
+    if (prompt && viewerRoom && !viewerRoom.canPlaybackAudio) prompt.hidden = false;
   });
 
   viewerRoom.on(RoomEvent.Reconnecting, () => showConnecting('Reconnecting…'));
