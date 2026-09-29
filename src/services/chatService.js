@@ -88,8 +88,42 @@ export async function getTotalMessageCount() {
   return { count: count || 0 };
 }
 
+/** Host-only: block a person from an event's chat and remove their messages. */
+export async function blockAuthor({ eventId, authorName, authorId }) {
+  const name = (authorName || '').trim().toLowerCase();
+  if (!name) return { error: 'Nothing to block.' };
+
+  const { error } = await supabase
+    .from('chat_blocks')
+    .insert({ event_id: eventId, author_name: name, author_id: authorId || null });
+  // 23505 = already blocked, which is fine.
+  if (error && error.code !== '23505') return { error: mapChatError(error) };
+
+  await supabase.from('chat_messages').delete().eq('event_id', eventId).ilike('author_name', name);
+  return {};
+}
+
+export async function getBlocks(eventId) {
+  const { data, error } = await supabase
+    .from('chat_blocks')
+    .select('*')
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: true });
+  if (error) return { error: mapChatError(error) };
+  return { data: data || [] };
+}
+
+export async function unblockAuthor(id) {
+  const { error } = await supabase.from('chat_blocks').delete().eq('id', id);
+  if (error) return { error: mapChatError(error) };
+  return {};
+}
+
 function mapChatError(error) {
   const message = error?.message ?? '';
+  if (message.includes('chat_blocked')) return "You've been blocked from this chat by the host.";
+  if (message.includes('chat_rate_limited')) return "You're sending messages too fast. Please wait a moment.";
+  if (message.includes('chat_banned_word')) return "Your message contains a word that isn't allowed in this chat.";
   if (message.includes('row-level security')) return "You don't have permission to do that.";
   if (message.includes('chat_messages_body_check')) return 'Message is too long or empty.';
   if (message.includes('chat_messages_author_name_check')) return 'Name must be 1-40 characters.';
