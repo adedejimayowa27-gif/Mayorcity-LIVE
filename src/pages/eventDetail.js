@@ -17,6 +17,8 @@ const content = document.getElementById('event-detail-content');
 let unsubscribeRealtime = null;
 let viewerRoom = null;
 let currentStatus = null;
+let viewerAudioEls = [];
+const attachedTrackSids = new Set();
 
 function categoryLabel(value) {
   return EVENT_CATEGORIES.find((c) => c.value === value)?.label || value;
@@ -140,15 +142,26 @@ function renderPlayerControls(videoEl) {
   const muteToggle = document.getElementById('mute-toggle');
   const fullscreenToggle = document.getElementById('fullscreen-toggle');
 
+  function applyMuted(muted) {
+    videoEl.muted = muted;
+    viewerAudioEls.forEach((el) => {
+      el.muted = muted;
+    });
+    if (!muted) {
+      // Browsers only allow sound after a tap — this runs inside one.
+      viewerRoom?.startAudio?.().catch(() => {});
+      viewerAudioEls.forEach((el) => el.play?.().catch(() => {}));
+      unmutePrompt.style.display = 'none';
+    }
+  }
+
   function unmute() {
-    videoEl.muted = false;
-    unmutePrompt.style.display = 'none';
+    applyMuted(false);
   }
 
   unmutePrompt.addEventListener('click', unmute);
   muteToggle.addEventListener('click', () => {
-    videoEl.muted = !videoEl.muted;
-    if (!videoEl.muted) unmutePrompt.style.display = 'none';
+    applyMuted(!videoEl.muted);
   });
   fullscreenToggle.addEventListener('click', () => {
     const container = videoEl.closest('.hero-monitor');
@@ -164,6 +177,8 @@ async function connectViewer(eventId) {
   if (viewerRoom) return; // already connected
 
   showConnecting('Connecting to the live stream…');
+  attachedTrackSids.clear();
+  viewerAudioEls = [];
 
   try {
     viewerRoom = await connectAsViewer(eventId);
@@ -179,9 +194,22 @@ async function connectViewer(eventId) {
   viewerRoom.on(RoomEvent.ParticipantConnected, () => updateViewerCount(viewerRoom));
   viewerRoom.on(RoomEvent.ParticipantDisconnected, () => updateViewerCount(viewerRoom));
 
-  viewerRoom.on(RoomEvent.TrackSubscribed, (track) => {
-    if (track.kind !== 'video') return;
+  function handleTrack(track) {
+    if (track.sid && attachedTrackSids.has(track.sid)) return;
+    if (track.sid) attachedTrackSids.add(track.sid);
+
     const videoEl = document.getElementById('viewer-video');
+
+    if (track.kind === 'audio') {
+      const audioEl = track.attach();
+      audioEl.muted = videoEl ? videoEl.muted : true;
+      audioEl.style.display = 'none';
+      document.body.appendChild(audioEl);
+      viewerAudioEls.push(audioEl);
+      return;
+    }
+
+    if (track.kind !== 'video') return;
     const frame = document.getElementById('monitor-frame');
     const caption = document.getElementById('monitor-caption');
     const note = document.getElementById('monitor-note');
@@ -195,6 +223,17 @@ async function connectViewer(eventId) {
     if (note) note.style.display = 'none';
     hideConnecting();
     renderPlayerControls(videoEl);
+  }
+
+  viewerRoom.on(RoomEvent.TrackSubscribed, (track) => handleTrack(track));
+
+  // The host's tracks may already have been subscribed by the time the
+  // listener above was attached — pick those up too, otherwise the viewer
+  // is stuck on "Connecting to the live stream…" forever.
+  viewerRoom.remoteParticipants.forEach((participant) => {
+    participant.trackPublications.forEach((pub) => {
+      if (pub.track) handleTrack(pub.track);
+    });
   });
 
   viewerRoom.on(RoomEvent.Reconnecting, () => showConnecting('Reconnecting…'));
