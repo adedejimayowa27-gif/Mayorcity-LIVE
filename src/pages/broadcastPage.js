@@ -2,7 +2,14 @@ import { requireAuth } from '../utils/authGuard.js';
 import { getEventById, updateEvent } from '../services/eventsService.js';
 import { connectAsHost, RoomEvent } from '../services/broadcastService.js';
 import { initToastRegion, showToast } from '../components/toast.js';
-import { createErrorState, createLiveBadge, renderOverlayHtml } from '../components/uiKit.js';
+import {
+  createErrorState,
+  createLiveBadge,
+  renderOverlayHtml,
+  formatMatchClock,
+  clockDataAttrs,
+  getClockElapsedSeconds
+} from '../components/uiKit.js';
 import { createModal } from '../components/modal.js';
 import { initChatPanel } from '../components/chatPanel.js';
 import { setButtonLoading, escapeHtml } from '../utils/dom.js';
@@ -27,8 +34,22 @@ let overlayState = {
   type: null,
   visible: false,
   programme: { heading: '', subheading: '' },
-  scoreboard: { teamA: 'Team A', teamB: 'Team B', scoreA: 0, scoreB: 0 }
+  scoreboard: {
+    teamA: 'Team A',
+    teamB: 'Team B',
+    scoreA: 0,
+    scoreB: 0,
+    clock: { period: 'PRE', running: false, baseSeconds: 0, startedAt: 0, halfLength: 45, visible: true }
+  }
 };
+
+// Older events saved before the clock existed have no clock — add one.
+function ensureClock() {
+  if (!overlayState.scoreboard.clock) {
+    overlayState.scoreboard.clock = { period: 'PRE', running: false, baseSeconds: 0, startedAt: 0, halfLength: 45, visible: true };
+  }
+  return overlayState.scoreboard.clock;
+}
 
 function shareUrl(eventId) {
   return `${window.location.origin}/event.html?id=${eventId}`;
@@ -142,6 +163,37 @@ function renderBroadcastUI() {
 }
 
 function renderTabPanel(isFootball) {
+  const clockState = ensureClock();
+  const CLOCK_PANEL = `
+      <div class="clock-panel">
+        <h3>Match clock</h3>
+        <div class="clock-readout" id="clock-readout" ${clockState.period === 'PRE' ? '' : clockDataAttrs(clockState)}>${clockState.period === 'PRE' ? '00:00' : escapeHtml(formatMatchClock(clockState))}</div>
+
+        <div class="clock-row">
+          <label class="field-label" for="clock-half-length" style="margin:0;">Half length (min)</label>
+          <input class="input" type="number" id="clock-half-length" min="1" max="60" value="${clockState.halfLength}" />
+          <button class="btn btn-secondary" type="button" id="clock-visible" aria-pressed="${clockState.visible !== false}">
+            ${clockState.visible !== false ? 'Clock shown' : 'Clock hidden'}
+          </button>
+        </div>
+
+        <div class="clock-row">
+          <button class="btn btn-primary" type="button" data-clock-action="kickoff">Kick off</button>
+          <button class="btn btn-secondary" type="button" data-clock-action="toggle" ${clockState.period === 'PRE' || clockState.period === 'HT' || clockState.period === 'FT' ? 'disabled' : ''}>${clockState.running ? 'Pause' : 'Resume'}</button>
+          <button class="btn btn-secondary" type="button" data-clock-action="halftime">Half time</button>
+          <button class="btn btn-secondary" type="button" data-clock-action="secondhalf">2nd half</button>
+          <button class="btn btn-secondary" type="button" data-clock-action="fulltime">Full time</button>
+        </div>
+
+        <div class="clock-row">
+          <button class="btn btn-secondary" type="button" data-clock-action="minus">&minus;1 min</button>
+          <button class="btn btn-secondary" type="button" data-clock-action="plus">+1 min</button>
+          <input class="input" type="number" id="clock-set-minutes" min="0" max="150" placeholder="min" />
+          <button class="btn btn-secondary" type="button" data-clock-action="set">Set time</button>
+        </div>
+      </div>
+`;
+
   const panel = document.getElementById('tab-panel');
   if (!panel) return;
 
@@ -235,6 +287,7 @@ function renderTabPanel(isFootball) {
           <button class="overlay-score-btn" type="button" data-score="b" data-delta="1" aria-label="Increase Team B score">+</button>
         </div>
       </div>
+      ${CLOCK_PANEL}
     </div>
     `
         : ''
@@ -296,6 +349,66 @@ function wireOverlayControls(isFootball) {
       overlayState.scoreboard[team] = Math.max(0, overlayState.scoreboard[team] + delta);
       document.getElementById(`score-${btn.dataset.score}-value`).textContent = overlayState.scoreboard[team];
       persistOverlay();
+    });
+  });
+
+  wireClockControls(isFootball);
+}
+
+function wireClockControls() {
+  const clock = ensureClock();
+  const nowSec = () => getClockElapsedSeconds(clock);
+
+  const commit = () => {
+    persistOverlay();
+    renderTabPanel(true);
+  };
+
+  document.getElementById('clock-half-length').addEventListener('change', (event) => {
+    const value = Math.min(60, Math.max(1, Math.round(Number(event.target.value)) || 45));
+    clock.halfLength = value;
+    commit();
+  });
+
+  document.getElementById('clock-visible').addEventListener('click', () => {
+    clock.visible = clock.visible === false;
+    commit();
+  });
+
+  document.querySelectorAll('[data-clock-action]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.clockAction;
+      const now = Date.now();
+      const half = clock.halfLength * 60;
+
+      if (action === 'kickoff') {
+        Object.assign(clock, { period: '1H', running: true, baseSeconds: 0, startedAt: now });
+      } else if (action === 'toggle') {
+        if (clock.running) {
+          Object.assign(clock, { running: false, baseSeconds: nowSec(), startedAt: 0 });
+        } else {
+          Object.assign(clock, { running: true, startedAt: now });
+        }
+      } else if (action === 'halftime') {
+        Object.assign(clock, { period: 'HT', running: false, baseSeconds: half, startedAt: 0 });
+      } else if (action === 'secondhalf') {
+        Object.assign(clock, { period: '2H', running: true, baseSeconds: half, startedAt: now });
+      } else if (action === 'fulltime') {
+        Object.assign(clock, { period: 'FT', running: false, baseSeconds: nowSec(), startedAt: 0 });
+      } else if (action === 'plus' || action === 'minus') {
+        if (clock.period === 'PRE') return;
+        const next = Math.max(0, nowSec() + (action === 'plus' ? 60 : -60));
+        Object.assign(clock, { baseSeconds: next, startedAt: clock.running ? now : 0 });
+      } else if (action === 'set') {
+        const minutes = Number(document.getElementById('clock-set-minutes').value);
+        if (!Number.isFinite(minutes) || minutes < 0) return;
+        Object.assign(clock, {
+          period: clock.period === 'PRE' ? '1H' : clock.period,
+          baseSeconds: minutes * 60,
+          startedAt: clock.running ? now : 0
+        });
+      }
+      commit();
     });
   });
 }
