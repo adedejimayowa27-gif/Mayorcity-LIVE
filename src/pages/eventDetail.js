@@ -7,6 +7,7 @@ import { connectAsViewer, RoomEvent } from '../services/broadcastService.js';
 import { createLoadingState, createErrorState, createLiveBadge, renderOverlayHtml } from '../components/uiKit.js';
 import { initChatPanel } from '../components/chatPanel.js';
 import { escapeHtml } from '../utils/dom.js';
+import { lockLandscape, unlockOrientation } from '../utils/orientation.js';
 
 initNavbar();
 initFooter();
@@ -51,8 +52,8 @@ function renderEvent(event) {
   const badge = event.status === 'live' ? createLiveBadge() : `<span class="badge">${categoryLabel(event.category)}</span>`;
 
   content.innerHTML = `
-    <div class="hero-monitor" style="margin-top: var(--space-2);">
-      <video id="viewer-video" playsinline muted style="width:100%;height:100%;object-fit:cover;display:none;"></video>
+    <div class="hero-monitor" style="margin-top: var(--space-2); aspect-ratio: 16 / 9;">
+      <video id="viewer-video" playsinline muted style="width:100%;height:100%;object-fit:contain;background:#000;display:none;"></video>
       <div class="hero-monitor-frame" id="monitor-frame"></div>
 
       <div class="hero-monitor-topbar">
@@ -163,13 +164,28 @@ function renderPlayerControls(videoEl) {
   muteToggle.addEventListener('click', () => {
     applyMuted(!videoEl.muted);
   });
-  fullscreenToggle.addEventListener('click', () => {
+  fullscreenToggle.addEventListener('click', async () => {
     const container = videoEl.closest('.hero-monitor');
     if (document.fullscreenElement) {
       document.exitFullscreen();
-    } else {
-      container.requestFullscreen?.();
+      return;
     }
+    if (container.requestFullscreen) {
+      try {
+        await container.requestFullscreen();
+        lockLandscape(); // turn the phone screen to landscape while fullscreen
+      } catch {
+        /* fullscreen refused — stay inline */
+      }
+    } else if (videoEl.webkitEnterFullscreen) {
+      // iPhone Safari: native player, rotates with the phone automatically.
+      videoEl.webkitEnterFullscreen();
+    }
+  });
+
+  // Covers every way out of fullscreen (button, back gesture, Esc).
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) unlockOrientation();
   });
 }
 
