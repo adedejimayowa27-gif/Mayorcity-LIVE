@@ -85,6 +85,7 @@ export async function updateEvent(id, updates) {
   if (updates.scheduledFor !== undefined) payload.scheduled_for = updates.scheduledFor;
   if (updates.overlay !== undefined) payload.overlay = updates.overlay;
   if (updates.peakViewers !== undefined) payload.peak_viewers = updates.peakViewers;
+  if (updates.chatBannedWords !== undefined) payload.chat_banned_words = updates.chatBannedWords;
 
   const { data, error } = await supabase.from('events').update(payload).eq('id', id).select().single();
   if (error) return { error: mapEventsError(error) };
