@@ -75,7 +75,7 @@ Check off what passes; anything that fails is a bug to fix before launch.
       page, admin tables), never executes
 - [ ] Confirm `.env` is NOT committed to your Git repository
 - [ ] Confirm `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` only exist in
-      Netlify's environment variables, never in any file in the repo
+      Vercel's environment variables, never in any file in the repo
 - [ ] Open browser DevTools → Network tab while using the site — confirm
       no API keys or secrets appear in any request/response body other
       than the Supabase publishable key and LiveKit URL (both expected)
