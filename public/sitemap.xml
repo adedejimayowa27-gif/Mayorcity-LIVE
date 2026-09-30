@@ -5,17 +5,17 @@
   they're deliberately left out of a static sitemap — search engines will
   still find them via normal links from /events.html.
 
-  Replace the domain below with your real one (or your Netlify URL,
-  e.g. https://mayorcitylive.netlify.app) once you have it.
+  Replace the domain below with your real one (or your Vercel URL,
+  e.g. https://your-project.vercel.app) once you have it.
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://mayorcitylive.netlify.app/</loc>
+    <loc>https://your-domain.example/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://mayorcitylive.netlify.app/events.html</loc>
+    <loc>https://your-domain.example/events.html</loc>
     <changefreq>hourly</changefreq>
     <priority>0.9</priority>
   </url>
