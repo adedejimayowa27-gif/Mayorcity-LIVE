@@ -11,4 +11,4 @@ Disallow: /dashboard.html
 Disallow: /broadcast.html
 Disallow: /admin.html
 
-Sitemap: https://your-domain.example/sitemap.xml
+Sitemap: https://mayorcitylivee.vercel.app/sitemap.xml
