@@ -19,7 +19,7 @@ export async function syncServerTime() {
   for (let i = 0; i < 3; i += 1) {
     try {
       const sentAt = Date.now();
-      const response = await fetch('/.netlify/functions/server-time', { cache: 'no-store' });
+      const response = await fetch('/api/server-time', { cache: 'no-store' });
       const receivedAt = Date.now();
       if (!response.ok) continue;
 
