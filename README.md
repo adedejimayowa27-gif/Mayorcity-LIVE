@@ -15,7 +15,7 @@ chat, scoreboard, broadcaster controls, or admin dashboard yet — see
 - HTML, CSS, vanilla JavaScript (ES modules) — no React/Vue/framework
 - [Vite](https://vitejs.dev) as the dev server and build tool
 - [Supabase](https://supabase.com) for auth/data (foundation only in this batch)
-- [Netlify](https://netlify.com) for hosting
+- [Vercel](https://vercel.com) for hosting
 
 ## Getting started
 
@@ -59,12 +59,12 @@ npm run build
 npm run preview   # preview the production build locally
 ```
 
-## Deploying to Netlify
+## Deploying to Vercel
 
-`netlify.toml` is already configured: build command `npm run build`, publish
-directory `dist`. Connect the repo in Netlify, then add the two
-`VITE_SUPABASE_*` environment variables in **Site settings → Environment
-variables** (do not commit them).
+`vercel.json` is already configured: build command `npm run build`, output
+directory `dist`. Import the repo in Vercel (Vite preset), then add the
+`VITE_SUPABASE_*` environment variables in **Project Settings → Environment
+Variables** (do not commit them). Use `vercel dev` locally so `/api/*` works.
 
 ## Project structure
 
@@ -80,13 +80,13 @@ mayorcity-live/
 ├── dashboard.html              Signed-in: create/manage your events
 ├── broadcast.html              Host-only: full broadcaster control centre
 ├── admin.html                  Admin-only: platform stats, events, users
-├── netlify.toml                Netlify build config + security headers
+├── vercel.json                 Vercel build config + security headers
 ├── vite.config.js              Multi-page build entries
 ├── .env.example                Template for local Supabase/LiveKit env vars
 ├── TESTING.md                  Manual QA checklist (no test framework in this stack)
-├── netlify/
-│   └── functions/
-│       └── create-livekit-token.mts   Mints LiveKit tokens server-side (secrets live here only)
+├── api/
+│   ├── create-livekit-token.js   Mints LiveKit tokens server-side (secrets live here only)
+│   └── server-time.js            Returns server time for clock sync
 ├── supabase/
 │   └── schema.sql              Run in the Supabase SQL editor (tables, RLS, constraints)
 ├── public/
@@ -205,8 +205,8 @@ image file isn't included in this batch — add a 1200×630 PNG at
 ## What's in Batch 4
 
 - LiveKit client (`livekit-client`) and server SDK (`livekit-server-sdk`)
-- `netlify/functions/create-livekit-token.mts` — the only place
-  `LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET` are ever read, from Netlify's
+- `api/create-livekit-token.js` — the only place
+  `LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET` are ever read, from Vercel's
   server-side environment variables, never shipped to the browser
 - `broadcastService.js` — `connectAsHost()` / `connectAsViewer()`
 - `broadcast.html` — the host's camera preview and controls: start camera,
@@ -223,10 +223,10 @@ image file isn't included in this batch — add a 1200×630 PNG at
 
 1. Create a project at [livekit.io](https://livekit.io) (or self-host) to get
    a project URL, API key, and API secret.
-2. In Netlify: **Site settings → Environment variables**, add
+2. In Vercel: **Project Settings → Environment Variables**, add
    `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET` (server-side only — do not
    prefix with `VITE_`).
-3. In your local `.env` **and** in Netlify's environment variables, set
+3. In your local `.env` **and** in Vercel's environment variables, set
    `VITE_LIVEKIT_URL` to your LiveKit project's `wss://` URL (this one is
    fine to expose — it's not a secret).
 
@@ -349,7 +349,7 @@ batch is the moderation and visibility foundation, not a full BI dashboard.
 - Server-side length limits on event title/description (`schema.sql`),
   backing up the existing client-side checks — the client-side ones alone
   can be bypassed by anyone calling the Supabase API directly
-- `netlify.toml`: security response headers (X-Frame-Options,
+- `vercel.json`: security response headers (X-Frame-Options,
   X-Content-Type-Options, Referrer-Policy, a camera/microphone-scoped
   Permissions-Policy, and a Content-Security-Policy), plus long-lived
   cache headers for Vite's content-hashed build assets
@@ -371,7 +371,7 @@ batch is the moderation and visibility foundation, not a full BI dashboard.
 3. Update the domain placeholders in `public/sitemap.xml` and
    `public/robots.txt` to your real domain.
 4. If you ever self-host LiveKit instead of using livekit.cloud, update
-   the `connect-src` line in `netlify.toml`'s Content-Security-Policy to
+   the `connect-src` line in `vercel.json`'s Content-Security-Policy to
    match your LiveKit domain, or video/chat connections will be silently
    blocked by the browser.
 5. Turn Supabase's email confirmation back on if you disabled it for
