@@ -6,7 +6,7 @@
 //
 // LIVEKIT_API_KEY/SECRET are never imported here or anywhere in the
 // frontend — only the room URL (public, not a secret) and a short-lived
-// token fetched from the Netlify function are used client-side.
+// token fetched from the Vercel function are used client-side.
 
 import { Room, RoomEvent, VideoPresets } from 'livekit-client';
 import { supabase } from '../lib/supabaseClient.js';
@@ -41,14 +41,14 @@ function createRoom() {
 }
 
 /**
- * Requests a short-lived LiveKit token from the Netlify function.
+ * Requests a short-lived LiveKit token from the Vercel function.
  * @param {{ roomName: string, role: 'host' | 'viewer' }} params
  */
 async function getBroadcastToken({ roomName, role }) {
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData?.session?.access_token;
 
-  const response = await fetch('/.netlify/functions/create-livekit-token', {
+  const response = await fetch('/api/create-livekit-token', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
